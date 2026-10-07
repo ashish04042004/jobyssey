@@ -6,9 +6,10 @@ services:
     runtime: docker
     plan: free
     region: singapore
-    rootDir: backend
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    buildFilter:
+      paths: [backend/**]
     # Free instances have no pre-deploy step, so migrations run on boot.
     # `migrate deploy` only applies pending migrations and is safe to repeat.
     dockerCommand: sh -c "./node_modules/.bin/prisma migrate deploy && node src/server.js"
@@ -23,7 +24,11 @@ services:
         value: "true"
       - key: DATABASE_POOL_MAX
         value: "5"
-      - key: DATABASE_URL # Supabase session pooler (port 5432)
+      - key: DATABASE_URL # Supabase session pooler (port 5432), no sslmode param
+        sync: false
+      - key: DATABASE_SSL_CA # app connections verify the server certificate
+        value: certs/supabase-prod-ca-2021.crt
+      - key: DIRECT_DATABASE_URL # same URL + ?sslmode=require, for prisma migrate
         sync: false
       - key: REDIS_URL
         fromService:

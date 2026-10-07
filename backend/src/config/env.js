@@ -14,6 +14,9 @@ const schema = z.object({
   // Shared by the API and the in-process worker; keep it under the database
   // plan's connection limit (Supabase's session pooler allows 15 on free).
   DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
+  // Path to a PEM CA bundle; when set, the database connection requires TLS and
+  // verifies the server against it (Supabase: certs/supabase-prod-ca-2021.crt).
+  DATABASE_SSL_CA: z.string().optional(),
   REDIS_URL: z.url(),
   // Shared with the Cloudflare Pages `/api` proxy so the API can trust the
   // visitor address it forwards. Unset when the API is called directly.
