@@ -8,6 +8,7 @@ const PATHS = {
   menu: 'M4 6h16M4 12h16M4 18h16',
   logout: 'M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h10',
   pulse: 'M3 12h4l3-8 4 16 3-8h4',
+  chart: 'M4 20V10m6 10V4m6 16v-7m4 7H3',
 };
 
 export default function Icon({ name, className = 'size-5' }) {

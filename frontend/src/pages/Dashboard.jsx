@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthContext.js';
+import StatusBadge from '../components/applications/StatusBadge.jsx';
 import Recommendations from '../components/jobs/Recommendations.jsx';
 import SystemStatus from '../components/SystemStatus.jsx';
 import TodayAgenda from '../components/TodayAgenda.jsx';
@@ -14,20 +15,30 @@ const PIPELINE = [
   { label: 'Offer', statuses: ['OFFER', 'ACCEPTED'] },
 ];
 
-function Pipeline() {
-  const [counts, setCounts] = useState(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    api.applications
-      .list({ limit: 1 }, controller.signal)
-      .then(({ meta }) => setCounts(meta.counts))
-      .catch(() => {});
-    return () => controller.abort();
-  }, []);
-
+function Card({ title, aside, children }) {
   return (
-    <Card title="Application pipeline">
+    <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+        {aside}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Pipeline({ summary }) {
+  const counts = summary?.pipeline;
+  const month = summary?.thisMonth;
+  return (
+    <Card
+      title="Application pipeline"
+      aside={
+        <Link to="/insights" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+          Insights →
+        </Link>
+      }
+    >
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
         {PIPELINE.map(({ label, statuses }) => (
           <Link
@@ -42,6 +53,35 @@ function Pipeline() {
           </Link>
         ))}
       </div>
+      {month && (
+        <p className="mt-4 text-sm text-slate-600">
+          This month: <span className="font-medium text-slate-900">{month.applications}</span> applied ·{' '}
+          <span className="font-medium text-slate-900">{month.interviews}</span> rounds ·{' '}
+          <span className="font-medium text-slate-900">{month.offers}</span> {month.offers === 1 ? 'offer' : 'offers'}
+        </p>
+      )}
+    </Card>
+  );
+}
+
+function FollowUps({ items }) {
+  if (!items?.length) return null;
+  return (
+    <Card title="Needs a follow-up">
+      <p className="mt-1 text-xs text-slate-500">No update in 2+ weeks. A polite nudge to the recruiter often helps.</p>
+      <ul className="mt-3 divide-y divide-slate-100">
+        {items.map((item) => (
+          <li key={item.id} className="py-2.5">
+            <Link to={`/applications/${item.id}`} className="flex items-center gap-2 hover:text-indigo-700">
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">{item.company}</span>
+              <StatusBadge status={item.status} />
+            </Link>
+            <p className="mt-0.5 truncate text-xs text-slate-500">
+              {item.title} · {item.daysSinceUpdate} days quiet
+            </p>
+          </li>
+        ))}
+      </ul>
     </Card>
   );
 }
@@ -53,19 +93,20 @@ function greeting(date = new Date()) {
   return 'Good evening';
 }
 
-function Card({ title, children }) {
-  return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5">
-      <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
 export default function Dashboard() {
   const { user } = useAuth();
   const firstName = user.name.split(/\s+/)[0];
   const hasPreferences = user.preferredRoles.length > 0 || user.preferredLocations.length > 0;
+  const [summary, setSummary] = useState(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api.analytics
+      .dashboard(controller.signal)
+      .then(({ data }) => setSummary(data))
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -93,13 +134,14 @@ export default function Dashboard() {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <TodayAgenda />
-
+          <Pipeline summary={summary} />
           <Recommendations />
-
-          <Pipeline />
         </div>
 
-        <SystemStatus />
+        <div className="space-y-6">
+          <FollowUps items={summary?.staleApplications} />
+          <SystemStatus />
+        </div>
       </div>
     </div>
   );

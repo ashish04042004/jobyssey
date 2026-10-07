@@ -88,6 +88,7 @@ export async function apiRequest(path, options = {}) {
   return send(path, options);
 }
 
+const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const RETRY_DELAYS_MS = [400, 1500];
 
 function isRetryable(err) {
@@ -165,6 +166,11 @@ export const api = {
     unreadCount: (signal) => apiRequest('/notifications/unread-count', { signal }),
     markRead: (id) => apiRequest(`/notifications/${id}/read`, { method: 'PATCH' }),
     markAllRead: () => apiRequest('/notifications/read-all', { method: 'PATCH' }),
+  },
+
+  analytics: {
+    dashboard: (signal) => apiRequest(`/analytics/dashboard${toQuery({ tz: TIME_ZONE })}`, { signal }),
+    applications: (params = {}, signal) => apiRequest(`/analytics/applications${toQuery({ tz: TIME_ZONE, ...params })}`, { signal }),
   },
 
   documents: {

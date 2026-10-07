@@ -16,7 +16,7 @@ Base path: `/api`. JSON in, JSON out. All timestamps are ISO-8601 UTC.
 | Notifications  | 6     | Implemented |
 | Idempotency, Admin | 7 | Implemented |
 | Documents      | 8     | Implemented |
-| Analytics      | 9     | Planned     |
+| Analytics      | 9     | Implemented |
 
 ---
 
@@ -412,34 +412,53 @@ nudges); there is no public create endpoint.
 
 ## 10. Analytics
 
-### `GET /api/analytics/dashboard`
-Everything the dashboard needs in one call (cached 5 min per user):
+Both endpoints only see the caller's own data. `tz` (IANA name, default `UTC`)
+decides month boundaries; the SPA sends the browser's zone. Unknown zones → `400`.
+
+### `GET /api/analytics/dashboard?tz=Asia/Kolkata`
+Dashboard numbers in one call. Cached 5 min per user and invalidated as soon
+as the user creates, updates, moves or deletes an application or interview.
+Today's items come from `GET /api/agenda` (§7), not from here.
 ```json
 {
   "data": {
-    "today": [
-      { "kind": "OA", "title": "Amazon OA", "dueAt": "…", "link": "/applications/…" }
-    ],
+    "generatedAt": "…",
     "pipeline": { "SAVED": 12, "APPLIED": 27, "OA": 8, "INTERVIEW": 4, "OFFER": 1 },
     "thisMonth": { "applications": 14, "interviews": 5, "offers": 1 },
-    "staleApplications": [{ "id": "…", "company": "Amazon", "daysSinceUpdate": 12 }]
+    "nextSevenDays": { "interviews": 3, "deadlines": 2 },
+    "staleApplications": [
+      { "id": "…", "company": "Amazon", "title": "SDE I", "status": "APPLIED", "daysSinceUpdate": 19 }
+    ]
   }
 }
 ```
+`staleApplications`: up to 5 active applications (`APPLIED`, `OA`,
+`OA_COMPLETED`, `INTERVIEW`) whose status has not changed for 14+ days, oldest first.
 
 ### `GET /api/analytics/applications`
-Query: `from`, `to`. Funnel and per-company conversion computed from
-`application_events`:
+Query: `from`, `to` (ISO date or datetime; filters by applied date, falling back
+to tracking date), `months` (1–24, default 6) for the monthly series, `tz`.
 ```json
 {
   "data": {
+    "range": { "from": null, "to": null, "tz": "Asia/Kolkata" },
     "funnel": { "applied": 27, "oa": 12, "interview": 6, "offer": 2 },
-    "conversion": { "appliedToOa": 0.44, "appliedToInterview": 0.22, "interviewToOffer": 0.33 },
+    "conversion": { "appliedToOa": 0.444, "appliedToInterview": 0.222, "interviewToOffer": 0.333 },
+    "responseRate": 0.63,
+    "outcomes": { "active": 14, "offers": 2, "accepted": 1, "rejected": 10, "withdrawn": 1 },
     "byCompany": [{ "company": "Amazon", "applied": 5, "oa": 2, "interview": 1, "offer": 0 }],
-    "monthly": [{ "month": "2026-09", "applications": 9 }, { "month": "2026-10", "applications": 14 }]
+    "monthly": [{ "month": "2026-09", "applications": 9, "interviews": 3, "offers": 0 }]
   }
 }
 ```
+- A stage counts only if the application actually entered it (from
+  `application_events`): `APPLIED → INTERVIEW` does not count as an OA.
+  Saved-but-never-applied applications are excluded.
+- `responseRate`: share of applications that heard back at all (OA,
+  interview, offer or rejection). Rates are `null` when the denominator is 0.
+- `byCompany`: top 10 by applications, then by how far they got.
+- `monthly`: zero-filled series ending with the current month; interviews
+  exclude cancelled rounds, offers are counted when the `OFFER` event happened.
 
 ---
 

@@ -14,8 +14,10 @@ applications, manage deadlines and interviews, and never miss a placement event.
 | ![Applications](docs/screenshots/applications.png) | ![Application detail](docs/screenshots/application-detail.png) |
 | **Interviews & OAs** | **Notifications** |
 | ![Interviews & OAs](docs/screenshots/interviews.png) | ![Notifications](docs/screenshots/notifications.png) |
-| **Documents** | **System (admin)** |
-| ![Documents](docs/screenshots/documents.png) | ![System](docs/screenshots/admin-system.png) |
+| **Insights** | **Documents** |
+| ![Insights](docs/screenshots/insights.png) | ![Documents](docs/screenshots/documents.png) |
+| **System (admin)** | |
+| ![System](docs/screenshots/admin-system.png) | |
 
 ---
 
@@ -32,8 +34,8 @@ applications, manage deadlines and interviews, and never miss a placement event.
 | 6     | Workers: outbox relay, BullMQ reminders, notifications, job matching, stale nudges | ✅ Done |
 | 7     | Reliability: idempotency keys, client retries, failed-job admin, data retention | ✅ Done |
 | 8     | Documents: direct-to-storage uploads, resume versions, resume per application | ✅ Done |
-| 9     | Analytics: funnel, conversion, monthly activity | ⏭ Next |
-| 10    | Testing & load testing                  | Planned      |
+| 9     | Analytics: funnel, response/interview rates, monthly activity, cached dashboard | ✅ Done |
+| 10    | Testing & load testing                  | ⏭ Next       |
 
 Design docs:
 

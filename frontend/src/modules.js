@@ -32,6 +32,14 @@ export const MODULES = [
     summary: 'Schedule OAs and interview rounds with meeting links and automatic reminders.',
   },
   {
+    path: '/insights',
+    label: 'Insights',
+    icon: 'chart',
+    ready: true,
+    phase: 9,
+    summary: 'Your funnel, response and interview rates, monthly activity and results by company.',
+  },
+  {
     path: '/documents',
     label: 'Documents',
     icon: 'file',

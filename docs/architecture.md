@@ -338,7 +338,7 @@ more than 7 days ago, and document uploads left `PENDING` for over a day. Audit 
 |-------------------------|----------------------------------------|-------|----------------------------|
 | Public job listings     | `jobs:v{n}:{hash(query)}`              | 5 min | bump `jobs:version` on write |
 | Company profile         | `company:{id}`                         | 1 h   | delete on update           |
-| Dashboard summary       | `dash:{userId}`                        | 5 min | delete on app/interview change |
+| Dashboard summary       | `dash:{userId}:v{n}:{tz}`              | 5 min | bump `dash:{userId}:version` on the user's app/interview writes |
 
 Versioned keys make "invalidate all job listing pages" a single `INCR`.
 
