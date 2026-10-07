@@ -22,6 +22,7 @@
     "load:api": "node load/api.js",
     "load:worker": "node load/worker.js",
     "user:set-role": "node scripts/set-role.js",
+    "user:delete": "node scripts/delete-user.js",
     "db:seed:dev": "node scripts/seed-dev.js",
     "postinstall": "prisma generate"
   },

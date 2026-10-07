@@ -5,6 +5,9 @@ applications, manage deadlines and interviews, and never miss a placement event.
 
 `React · Node.js · Express · PostgreSQL · Redis · BullMQ · Docker`
 
+**Live (beta):** <https://jobyssey.pages.dev>. The API sleeps when idle on Render's free
+plan, so the first request after a quiet spell can take ~50 s.
+
 ![Dashboard](docs/screenshots/dashboard.png)
 
 | Opportunities | Job detail |
@@ -156,7 +159,25 @@ limits) and how the design handles them.
 | `frontend/wrangler.toml` | Cloudflare Pages project; `API_ORIGIN` for the proxy |
 | `frontend/functions/api/[[path]].js` | Same-origin `/api` proxy, forwards the visitor IP with `PROXY_SECRET` |
 
-Production env: `DATABASE_URL` (Supabase session pooler), `CORS_ORIGINS`
-(the Pages URL), `PROXY_SECRET` (same value on Render and as a Pages secret),
-`STORAGE_DRIVER=supabase` with `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` and
-a private `documents` bucket, `RUN_WORKER_IN_API=true`.
+Production env:
+
+- `DATABASE_URL`: Supabase session pooler. `DATABASE_SSL_CA=certs/supabase-prod-ca-2021.crt`
+  makes the app require TLS and verify the server; `DIRECT_DATABASE_URL` is the
+  same URL + `?sslmode=require` for `prisma migrate`.
+- `REDIS_URL`: Render Key Value internal connection string.
+- `CORS_ORIGINS=https://jobyssey.pages.dev`, `PROXY_SECRET` (same value on Render
+  and as a Pages secret), `RUN_WORKER_IN_API=true`.
+- `STORAGE_DRIVER=supabase` with `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` and a
+  private `documents` bucket (5 MB, PDF/DOCX only).
+
+Every table has row-level security enabled (migration
+`enable_row_level_security`), so Supabase's auto-generated Data API exposes
+nothing; the app connects as the table owner and is unaffected.
+
+Redeploys: pushing `backend/**` to `main` rebuilds the API on Render (migrations
+run on boot). The frontend is deployed with
+`cd frontend && npm run build && npx wrangler pages deploy dist --project-name jobyssey --branch main`.
+
+Running admin scripts against production: export the production `DATABASE_URL`,
+`DATABASE_SSL_CA` and (for `user:delete`) the Supabase storage variables, then e.g.
+`npm run user:set-role -- you@example.com ADMIN` or `npm run user:delete -- someone@example.com`.
