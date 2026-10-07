@@ -7,6 +7,10 @@ applications, manage deadlines and interviews, and never miss a placement event.
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
+| Opportunities | Job detail |
+|---|---|
+| ![Opportunities](docs/screenshots/jobs.png) | ![Job detail](docs/screenshots/job-detail.png) |
+
 ---
 
 ## Status
@@ -16,8 +20,9 @@ applications, manage deadlines and interviews, and never miss a placement event.
 | 0     | Design: architecture, schema, API       | ✅ Done      |
 | 1     | Foundation: API, worker, DB, Docker, UI shell | ✅ Done |
 | 2     | Authentication: signup, login, rotating refresh tokens, rate limits, profile | ✅ Done |
-| 3     | Jobs & matching                         | ⏭ Next       |
-| 4–9   | Applications, interviews, workers, reliability, documents, analytics | Planned |
+| 3     | Jobs: listings, private jobs, match scoring, search/filters, save, caching | ✅ Done |
+| 4     | Applications: tracker, status transitions, timeline, notes | ⏭ Next |
+| 5–9   | Interviews, workers, reliability, documents, analytics | Planned |
 | 10    | Testing & load testing                  | Planned      |
 
 Design docs:
@@ -104,6 +109,7 @@ npm test               # unit + integration tests (needs `docker compose up -d p
 npm run db:migrate     # create a migration after editing schema.prisma
 npm run db:studio      # browse the database
 npm run user:set-role -- you@example.com ADMIN   # promote an account (admins curate public jobs)
+npm run db:seed:dev    # local only: admin@jobyssey.dev + 10 sample public jobs
 
 # health
 curl localhost:4001/api/health          # liveness

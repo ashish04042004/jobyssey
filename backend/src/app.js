@@ -37,7 +37,7 @@ export function createApp({ logger, corsOrigins, prisma, redis, healthService, v
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
 
-  app.use('/api', apiRoutes({ prisma, redis, corsOrigins, healthService, version }));
+  app.use('/api', apiRoutes({ logger, prisma, redis, corsOrigins, healthService, version }));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

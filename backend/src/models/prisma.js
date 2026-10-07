@@ -6,5 +6,7 @@ const adapter = new PrismaPg({ connectionString: env.DATABASE_URL });
 
 export const prisma = new PrismaClient({
   adapter,
-  log: env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+  // Query errors surface through our own error handling; Prisma's 'error' log
+  // would also print expected ones such as handled unique-constraint races.
+  log: ['warn'],
 });

@@ -97,4 +97,22 @@ export const api = {
 
   me: () => apiRequest('/me'),
   updateMe: (body) => apiRequest('/me', { method: 'PATCH', body }),
+
+  jobs: {
+    list: (params = {}, signal) => apiRequest(`/jobs${toQuery(params)}`, { signal }),
+    get: (id, signal) => apiRequest(`/jobs/${id}`, { signal }),
+    create: (body) => apiRequest('/jobs', { method: 'POST', body }),
+    update: (id, body) => apiRequest(`/jobs/${id}`, { method: 'PATCH', body }),
+    archive: (id) => apiRequest(`/jobs/${id}`, { method: 'DELETE' }),
+    save: (id) => apiRequest(`/jobs/${id}/save`, { method: 'POST' }),
+  },
+
+  companies: {
+    search: (q, signal) => apiRequest(`/companies${toQuery({ q })}`, { signal }),
+  },
 };
+
+function toQuery(params) {
+  const entries = Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '');
+  return entries.length ? `?${new URLSearchParams(entries)}` : '';
+}

@@ -19,6 +19,7 @@
     "db:studio": "prisma studio",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
     "user:set-role": "node scripts/set-role.js",
+    "db:seed:dev": "node scripts/seed-dev.js",
     "postinstall": "prisma generate"
   },
   "jest": {

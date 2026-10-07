@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthContext.js';
+import Recommendations from '../components/jobs/Recommendations.jsx';
 import SystemStatus from '../components/SystemStatus.jsx';
 
 const PIPELINE = ['Saved', 'Applied', 'OA', 'Interview', 'Offer'];
@@ -55,6 +56,8 @@ export default function Dashboard() {
               Nothing due yet. Upcoming OAs, interviews and application deadlines will show up here.
             </p>
           </Card>
+
+          <Recommendations />
 
           <Card title="Application pipeline">
             <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">

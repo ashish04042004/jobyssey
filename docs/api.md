@@ -10,7 +10,7 @@ Base path: `/api`. JSON in, JSON out. All timestamps are ISO-8601 UTC.
 |----------------|-------|-------------|
 | Health         | 1     | Implemented |
 | Auth / Me      | 2     | Implemented |
-| Jobs           | 3     | Planned     |
+| Jobs           | 3     | Implemented (Idempotency-Key support lands in phase 7) |
 | Applications   | 4     | Planned     |
 | Interviews     | 5     | Planned     |
 | Notifications  | 6     | Planned     |
@@ -167,13 +167,24 @@ All `/api/me` (and future authenticated) routes share a 100 req/min/user limit.
 ## 5. Jobs
 
 ### `GET /api/jobs`
-Query: `q` (title/company search), `location`, `roleCategory`,
-`graduationYear`, `minCtc`, `employmentType`, `deadlineAfter`,
-`sort=match|deadline|recent` (default `match`), `limit`, `cursor`.
+Query: `q` (title/company/role search), `location`, `roleCategory`,
+`graduationYear`, `minCtc`, `employmentType` (comma-separated),
+`includeExpired` (default `false`), `mine` (only jobs I added),
+`sort=match|deadline|recent` (default `match`), `limit` (≤100), `cursor`.
 
 Returns public active jobs plus the caller's private jobs. Each item includes
-`matchScore` (0–100) and `matchBreakdown`, plus the caller's `application`
-(id + status) if one exists.
+`matchScore` (0–100), `matchBreakdown`, `canEdit`, and the caller's
+`application` (id + status) if one exists. `meta.total` is the full match count.
+
+`location` and `roleCategory` use the same synonym tables as scoring, so
+`location=Delhi NCR` finds Noida and Gurugram jobs and `roleCategory=SDE` finds
+"Software Engineer" titles.
+
+Implementation note: the shared public-job query (DB-side filters only) is
+cached in Redis for 5 minutes under a versioned key; every public job write
+bumps the version. Personal scoring, private jobs and application status are
+layered on per request, and candidates are capped at 500 — ample for the beta,
+after which scoring should move into SQL.
 
 ```json
 {
@@ -207,10 +218,18 @@ Students create `PRIVATE` jobs (opportunities found elsewhere); admins may set
 (find-or-create by slug).
 
 ### `PATCH /api/jobs/:id` / `DELETE /api/jobs/:id`
-Owner (private job) or admin (public job).
+Owner (private job) or admin (public job). Students get `403` on public jobs and
+`404` on other students' private jobs. `DELETE` archives (`is_active = false`):
+the job leaves listings, but anyone who already tracks it can still open it.
 
 ### `POST /api/jobs/:id/save` **[idem]**
-Creates an application in `SAVED` (or returns the existing one). → `201`/`200`.
+Creates an application in `SAVED` with its first timeline event (or returns the
+existing one). → `201` created / `200` already tracked. Concurrent clicks are
+safe: the `UNIQUE (user_id, job_id)` constraint picks one winner and the others
+return it.
+
+### `GET /api/companies?q=micro&limit=8`
+Company autocomplete for the job form.
 
 ---
 

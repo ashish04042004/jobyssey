@@ -1,11 +1,21 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/authenticate.js';
 import { rateLimit } from '../middleware/rateLimit.js';
+import { createApplicationService } from '../services/application.service.js';
+import { createCache } from '../services/cache.service.js';
+import { createJobService } from '../services/job.service.js';
 import { authRoutes } from './auth.routes.js';
+import { companyRoutes } from './company.routes.js';
 import { healthRoutes } from './health.routes.js';
+import { jobRoutes } from './job.routes.js';
 import { meRoutes } from './me.routes.js';
 
 export function apiRoutes(deps) {
+  const cache = createCache({ redis: deps.redis, logger: deps.logger });
+  const jobService = createJobService({ prisma: deps.prisma, cache });
+  const applicationService = createApplicationService({ prisma: deps.prisma, jobService });
+  const services = { ...deps, jobService, applicationService };
+
   const router = Router();
   const protectedRoute = [
     authenticate,
@@ -15,6 +25,8 @@ export function apiRoutes(deps) {
   router.use('/health', healthRoutes(deps));
   router.use('/auth', authRoutes(deps));
   router.use('/me', ...protectedRoute, meRoutes(deps));
+  router.use('/jobs', ...protectedRoute, jobRoutes(services));
+  router.use('/companies', ...protectedRoute, companyRoutes(deps));
 
   return router;
 }
