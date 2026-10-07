@@ -1,0 +1,128 @@
+name: CI / Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  RENDER_SERVICE_ID: srv-db394cbncjis73es30v0
+  PAGES_PROJECT: jobyssey
+  APP_URL: https://jobyssey.pages.dev
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend: ['backend/**', '.github/workflows/**']
+            frontend: ['frontend/**', '.github/workflows/**']
+
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: jobyssey
+          POSTGRES_PASSWORD: jobyssey
+          POSTGRES_DB: jobyssey_test
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U jobyssey" --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6380:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  deploy-api:
+    needs: [changes, backend, frontend]
+    if: github.event_name == 'push' && needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy this commit on Render and wait until it is live
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          api="https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys"
+          auth="Authorization: Bearer $RENDER_API_KEY"
+          id=$(curl -fsS -X POST -H "$auth" -H 'Content-Type: application/json' -d "{\"commitId\":\"$GITHUB_SHA\"}" "$api" | jq -r .id)
+          echo "deploy $id"
+          for _ in $(seq 1 90); do
+            status=$(curl -fsS -H "$auth" "$api/$id" | jq -r .status)
+            echo "$status"
+            case "$status" in
+              live) exit 0 ;;
+              build_failed|update_failed|canceled|deactivated) exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "timed out waiting for the deploy" && exit 1
+
+  deploy-web:
+    needs: [changes, backend, frontend]
+    if: github.event_name == 'push' && needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npx --yes wrangler@4 pages deploy dist --project-name "$PAGES_PROJECT" --branch main --commit-hash "$GITHUB_SHA"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  smoke:
+    needs: [deploy-api, deploy-web]
+    if: always() && !failure() && !cancelled() && (needs.deploy-api.result == 'success' || needs.deploy-web.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Production health through the Pages proxy
+        run: curl -fsS --retry 6 --retry-delay 10 --retry-all-errors --max-time 90 "$APP_URL/api/health/ready"

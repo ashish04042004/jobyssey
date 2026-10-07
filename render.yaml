@@ -14,7 +14,9 @@ services:
     # `migrate deploy` only applies pending migrations and is safe to repeat.
     dockerCommand: sh scripts/start-production.sh
     healthCheckPath: /api/health
-    autoDeploy: true
+    # Deploys are triggered by GitHub Actions (.github/workflows/ci.yml) once the
+    # tests pass, not by Render on every push.
+    autoDeploy: false
     envVars:
       - key: NODE_ENV
         value: production

@@ -130,6 +130,7 @@ npm run load:worker    # outbox + reminder pipeline throughput
 npm run db:migrate     # create a migration after editing schema.prisma
 npm run db:studio      # browse the database
 npm run user:set-role -- you@example.com ADMIN   # promote an account (admins curate public jobs)
+npm run user:delete -- someone@example.com        # delete an account and everything it owns
 npm run db:seed:dev    # local only: admin@jobyssey.dev + 10 sample public jobs
 
 # health
@@ -174,9 +175,13 @@ Every table has row-level security enabled (migration
 `enable_row_level_security`), so Supabase's auto-generated Data API exposes
 nothing; the app connects as the table owner and is unaffected.
 
-Redeploys: pushing `backend/**` to `main` rebuilds the API on Render (migrations
-run on boot). The frontend is deployed with
-`cd frontend && npm run build && npx wrangler pages deploy dist --project-name jobyssey --branch main`.
+**CI/CD** (`.github/workflows/ci.yml`): every push and pull request runs the
+backend tests (against Postgres + Redis service containers) and the frontend
+tests and build. On `main`, once both pass, changed parts are deployed: the API
+via Render's deploy API (waits until the deploy is live; migrations run on
+boot), the frontend via `wrangler pages deploy`, followed by a health check
+through the production proxy. Repo secrets: `RENDER_API_KEY`,
+`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
 
 Running admin scripts against production: export the production `DATABASE_URL`,
 `DATABASE_SSL_CA` and (for `user:delete`) the Supabase storage variables, then e.g.
