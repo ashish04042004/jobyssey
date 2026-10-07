@@ -4,4 +4,4 @@ compatibility_date = "2026-10-01"
 
 # PROXY_SECRET is a Pages secret: `npx wrangler pages secret put PROXY_SECRET`.
 [vars]
-API_ORIGIN = "https://jobyssey-api.onrender.com"
+API_ORIGIN = "https://jobyssey-api-85zu.onrender.com"

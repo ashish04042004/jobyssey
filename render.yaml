@@ -12,7 +12,7 @@ services:
       paths: [backend/**]
     # Free instances have no pre-deploy step, so migrations run on boot.
     # `migrate deploy` only applies pending migrations and is safe to repeat.
-    dockerCommand: sh -c "./node_modules/.bin/prisma migrate deploy && node src/server.js"
+    dockerCommand: sh scripts/start-production.sh
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
