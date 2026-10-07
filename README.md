@@ -35,13 +35,14 @@ applications, manage deadlines and interviews, and never miss a placement event.
 | 7     | Reliability: idempotency keys, client retries, failed-job admin, data retention | ✅ Done |
 | 8     | Documents: direct-to-storage uploads, resume versions, resume per application | ✅ Done |
 | 9     | Analytics: funnel, response/interview rates, monthly activity, cached dashboard | ✅ Done |
-| 10    | Testing & load testing                  | ⏭ Next       |
+| 10    | Testing & load testing: 187 backend + 14 frontend tests, 95% coverage, API and worker load tests | ✅ Done |
 
 Design docs:
 
 - [`docs/architecture.md`](docs/architecture.md) — system design, state machine, outbox, queues, deployment
 - [`docs/schema.md`](docs/schema.md) — every table and why it looks the way it does
 - [`docs/api.md`](docs/api.md) — REST contract, error codes, idempotency, pagination
+- [`docs/performance.md`](docs/performance.md) — test suites, coverage, load-test results, bottlenecks
 
 ---
 
@@ -120,6 +121,9 @@ stacks. Override them in a root `.env` (see `.env.example`).
 ```bash
 # backend/
 npm test               # unit + integration tests (needs `docker compose up -d postgres redis`)
+npm run test:coverage  # same, with a coverage report in backend/coverage/
+npm run load:api       # HTTP load test against the Docker stack (see docs/performance.md)
+npm run load:worker    # outbox + reminder pipeline throughput
 npm run db:migrate     # create a migration after editing schema.prisma
 npm run db:studio      # browse the database
 npm run user:set-role -- you@example.com ADMIN   # promote an account (admins curate public jobs)
@@ -128,6 +132,9 @@ npm run db:seed:dev    # local only: admin@jobyssey.dev + 10 sample public jobs
 # health
 curl localhost:4001/api/health          # liveness
 curl localhost:4001/api/health/ready    # database, redis, worker heartbeat
+
+# frontend/
+npm test               # Vitest: formatting + API client (auth refresh, idempotent retries)
 ```
 
 Integration tests run against a separate `jobyssey_test` database (created and

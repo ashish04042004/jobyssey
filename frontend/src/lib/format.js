@@ -111,7 +111,7 @@ export function formatDate(iso, withTime = false) {
 }
 
 export function timeAgo(iso, now = Date.now()) {
-  const minutes = Math.round((now - new Date(iso).getTime()) / 60_000);
+  const minutes = Math.floor((now - new Date(iso).getTime()) / 60_000);
   if (minutes < 1) return 'just now';
   if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.round(minutes / 60);

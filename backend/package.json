@@ -18,6 +18,9 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --coverage --coverageProvider=v8 --collectCoverageFrom=src/**/*.js --coverageReporters=text-summary --coverageReporters=text --coverageReporters=html",
+    "load:api": "node load/api.js",
+    "load:worker": "node load/worker.js",
     "user:set-role": "node scripts/set-role.js",
     "db:seed:dev": "node scripts/seed-dev.js",
     "postinstall": "prisma generate"
@@ -52,6 +55,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "autocannon": "^8.0.0",
     "jest": "^30.5.2",
     "pino-pretty": "^13.2.0",
     "supertest": "^7.3.1"
