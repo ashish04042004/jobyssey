@@ -3,6 +3,8 @@ dist/
 coverage/
 .env
 .env.local
+deploy.env
+.wrangler/
 *.log
 .DS_Store
 backend/storage/

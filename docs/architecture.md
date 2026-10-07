@@ -363,9 +363,14 @@ Prisma.
 | Frontend    | Cloudflare Pages           | Static build of `frontend/` |
 | API         | Render free web service    | Docker image from `backend/` |
 | Worker      | Co-located with the API for the beta (`RUN_WORKER_IN_API=true`) | Split out when a worker host is chosen |
-| Postgres    | Supabase free              | Use the **pooled** connection string for the app, direct one for migrations |
-| Redis       | Upstash free               | TLS (`rediss://`) |
+| Postgres    | Supabase free              | **Session pooler** connection string (IPv4, port 5432) for both the app and migrations |
+| Redis       | Render Key Value free      | Internal-only, `noeviction`. Upstash's free tier (500k commands/month) is too small for BullMQ's idle polling (~2M/month) |
 | Files       | Supabase Storage           | Private bucket, signed URLs, 5 MB/file limit |
+| `/api` proxy | Cloudflare Pages Function | `frontend/functions/api/[[path]].js` forwards to Render, so the browser sees one origin |
+
+`render.yaml` describes the Render side as a Blueprint; `frontend/wrangler.toml`
+the Pages side. Migrations run on boot (`prisma migrate deploy`), because free
+Render instances have no pre-deploy step.
 
 ### Things that will bite if ignored
 1. **Render free instances sleep after inactivity.** A sleeping process cannot
@@ -374,13 +379,20 @@ Prisma.
    wake-up.
 2. **Cross-site cookies.** `*.pages.dev` and `*.onrender.com` are different
    sites; browsers increasingly block third-party cookies, which breaks the
-   refresh cookie. Serve both under one domain (`app.jobyssey.xx` +
-   `api.jobyssey.xx`), or proxy `/api/*` through a Cloudflare Pages Function so
-   the browser only ever talks to one origin.
+   refresh cookie. Solved by the Pages Function proxy: the SPA calls its own
+   origin, so the cookie is first-party and `SameSite=Lax`. The proxy forwards
+   the visitor IP in `X-Client-IP` with a shared `PROXY_SECRET`; the API only
+   trusts that header when the secret matches, so per-IP auth rate limits keep
+   working and can't be spoofed by calling Render directly.
 3. **Supabase free projects pause after a period of inactivity.** Real beta usage
    prevents this; keep an eye on it during quiet weeks.
-4. **Connection limits.** Prisma pool size kept small (`connection_limit=5`) and
-   the Supabase pooler used at runtime.
+4. **Connection limits.** The Supabase session pooler allows 15 clients on the
+   free plan; the API + in-process worker share one pool of
+   `DATABASE_POOL_MAX=5`.
+5. **Render Key Value free is not persisted.** A restart loses queued jobs, but
+   nothing is lost for good: domain events live in the Postgres outbox, and
+   reminder rows are the source of truth, so the 5-minute `reminder.sweep`
+   re-enqueues anything that went missing.
 
 ### Local development
 `docker compose up` runs `postgres`, `redis`, `api`, and `worker` exactly like

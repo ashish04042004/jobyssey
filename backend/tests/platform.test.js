@@ -5,6 +5,7 @@ import request from 'supertest';
 import { errorHandler } from '../src/middleware/errorHandler.js';
 import { rateLimit } from '../src/middleware/rateLimit.js';
 import { requestId } from '../src/middleware/requestId.js';
+import { trustedProxy } from '../src/middleware/trustedProxy.js';
 import { apiAs, createTestContext, createUser } from './helpers/integration.js';
 
 const ctx = createTestContext();
@@ -132,5 +133,32 @@ describe('HTTP hardening', () => {
       .set('Access-Control-Request-Headers', 'authorization,content-type,idempotency-key');
     expect(res.status).toBe(204);
     expect(res.headers['access-control-allow-headers']).toContain('idempotency-key');
+  });
+});
+
+describe('trusted proxy', () => {
+  const SECRET = 'proxy-secret-for-tests-0123456789abcdef';
+  const ipApp = (secret) => {
+    const app = express();
+    app.set('trust proxy', 1);
+    app.use(trustedProxy(secret));
+    app.get('/', (req, res) => res.json({ ip: req.ip }));
+    return app;
+  };
+
+  it('uses the forwarded visitor address only with the shared secret', async () => {
+    const app = ipApp(SECRET);
+    const trusted = await request(app).get('/').set('X-Proxy-Secret', SECRET).set('X-Client-IP', '203.0.113.7');
+    expect(trusted.body.ip).toBe('203.0.113.7');
+
+    const forged = await request(app).get('/').set('X-Proxy-Secret', 'wrong').set('X-Client-IP', '203.0.113.7');
+    expect(forged.body.ip).not.toBe('203.0.113.7');
+    const garbage = await request(app).get('/').set('X-Proxy-Secret', SECRET).set('X-Client-IP', 'not-an-ip');
+    expect(garbage.body.ip).not.toBe('not-an-ip');
+  });
+
+  it('ignores the header entirely when no secret is configured', async () => {
+    const res = await request(ipApp(undefined)).get('/').set('X-Proxy-Secret', '').set('X-Client-IP', '203.0.113.7');
+    expect(res.body.ip).not.toBe('203.0.113.7');
   });
 });

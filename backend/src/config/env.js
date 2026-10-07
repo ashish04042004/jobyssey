@@ -11,7 +11,13 @@ const schema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   DATABASE_URL: z.url(),
+  // Shared by the API and the in-process worker; keep it under the database
+  // plan's connection limit (Supabase's session pooler allows 15 on free).
+  DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
   REDIS_URL: z.url(),
+  // Shared with the Cloudflare Pages `/api` proxy so the API can trust the
+  // visitor address it forwards. Unset when the API is called directly.
+  PROXY_SECRET: z.string().min(32, 'PROXY_SECRET must be at least 32 characters').optional(),
   CORS_ORIGINS: z
     .string()
     .default('http://localhost:5173')

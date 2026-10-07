@@ -35,7 +35,7 @@ applications, manage deadlines and interviews, and never miss a placement event.
 | 7     | Reliability: idempotency keys, client retries, failed-job admin, data retention | ✅ Done |
 | 8     | Documents: direct-to-storage uploads, resume versions, resume per application | ✅ Done |
 | 9     | Analytics: funnel, response/interview rates, monthly activity, cached dashboard | ✅ Done |
-| 10    | Testing & load testing: 187 backend + 14 frontend tests, 95% coverage, API and worker load tests | ✅ Done |
+| 10    | Testing & load testing: 189 backend + 14 frontend tests, 95% coverage, API and worker load tests | ✅ Done |
 
 Design docs:
 
@@ -144,7 +144,19 @@ migrated automatically) and Redis DB 15, so they never touch your dev data.
 
 ## Deployment (beta)
 
-Frontend on Cloudflare Pages, API on Render, Postgres + file storage on Supabase,
-Redis on Upstash. See [architecture §9](docs/architecture.md#9-deployment-beta-0)
-for the free-tier caveats (sleeping instances, cross-site cookies, connection
+Frontend on Cloudflare Pages (with a Pages Function proxying `/api` to Render),
+API + worker on Render, Redis on Render Key Value, Postgres + file storage on
+Supabase. See [architecture §9](docs/architecture.md#9-deployment-beta-0) for
+the free-tier caveats (sleeping instances, cross-site cookies, connection
 limits) and how the design handles them.
+
+| File | Purpose |
+|------|---------|
+| `render.yaml` | Render Blueprint: API web service (Docker, migrations on boot) + Key Value |
+| `frontend/wrangler.toml` | Cloudflare Pages project; `API_ORIGIN` for the proxy |
+| `frontend/functions/api/[[path]].js` | Same-origin `/api` proxy, forwards the visitor IP with `PROXY_SECRET` |
+
+Production env: `DATABASE_URL` (Supabase session pooler), `CORS_ORIGINS`
+(the Pages URL), `PROXY_SECRET` (same value on Render and as a Pages secret),
+`STORAGE_DRIVER=supabase` with `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` and
+a private `documents` bucket, `RUN_WORKER_IN_API=true`.

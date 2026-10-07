@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import { requestId } from './middleware/requestId.js';
+import { trustedProxy } from './middleware/trustedProxy.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { apiRoutes } from './routes/index.js';
 
@@ -11,12 +12,13 @@ import { apiRoutes } from './routes/index.js';
  * Builds the Express app. Dependencies are injected so tests can supply fakes
  * instead of real Postgres/Redis connections.
  */
-export function createApp({ logger, corsOrigins, prisma, redis, queues, storage, healthService, version = '0.0.0' }) {
+export function createApp({ logger, corsOrigins, proxySecret, prisma, redis, queues, storage, healthService, version = '0.0.0' }) {
   const app = express();
 
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
 
+  app.use(trustedProxy(proxySecret));
   app.use(requestId);
   app.use(
     pinoHttp({

@@ -8,13 +8,13 @@ that leaves and what to change first if it ever stops being enough.
 
 ## 1. Test suites
 
-Backend: **187 tests in 15 files** (Jest + Supertest). Frontend: **14 tests** (Vitest).
+Backend: **189 tests in 15 files** (Jest + Supertest). Frontend: **14 tests** (Vitest).
 
 | Suite | What it covers |
 |-------|----------------|
 | Backend unit | Pure rules: status state machine, role checks, match scoring, funnel maths, Supabase Storage driver (mocked HTTP) |
 | Backend integration | Every route against a real Postgres (`jobyssey_test`) and Redis (DB 15): auth & refresh rotation, ownership, optimistic locking, idempotency keys, outbox relay, workers, reminders, documents, analytics, admin |
-| Backend platform | Rate limits (window, fail-open/closed), 100 req/min per user, no 5xx detail leakage, 413 on oversized bodies, bad cursors, forged JWTs, security headers, CORS / `Idempotency-Key` preflight |
+| Backend platform | Rate limits (window, fail-open/closed), 100 req/min per user, no 5xx detail leakage, 413 on oversized bodies, bad cursors, forged JWTs, security headers, CORS / `Idempotency-Key` preflight, trusted-proxy client IP |
 | Frontend | Date/time formatting; the API client: token refresh on 401, session end, field-error mapping, idempotent retries (network errors, 503, `IDEMPOTENCY_IN_PROGRESS`, retry cap, one key per intent) |
 
 Backend coverage (`npm run test:coverage`, HTML report in `backend/coverage/`):

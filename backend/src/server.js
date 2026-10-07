@@ -19,6 +19,7 @@ const storage = createStorage(env);
 const app = createApp({
   logger,
   corsOrigins: env.CORS_ORIGINS,
+  proxySecret: env.PROXY_SECRET,
   prisma,
   redis,
   queues,
