@@ -4,6 +4,7 @@ import { rateLimit } from '../middleware/rateLimit.js';
 import { createApplicationService } from '../services/application.service.js';
 import { createCache } from '../services/cache.service.js';
 import { createJobService } from '../services/job.service.js';
+import { applicationRoutes } from './application.routes.js';
 import { authRoutes } from './auth.routes.js';
 import { companyRoutes } from './company.routes.js';
 import { healthRoutes } from './health.routes.js';
@@ -27,6 +28,7 @@ export function apiRoutes(deps) {
   router.use('/me', ...protectedRoute, meRoutes(deps));
   router.use('/jobs', ...protectedRoute, jobRoutes(services));
   router.use('/companies', ...protectedRoute, companyRoutes(deps));
+  router.use('/applications', ...protectedRoute, applicationRoutes(services));
 
   return router;
 }

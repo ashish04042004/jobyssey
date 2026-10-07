@@ -33,7 +33,7 @@ export function createJobController({ jobService, applicationService }) {
     },
 
     async save(req, res) {
-      const { application, created } = await applicationService.saveJob(req.user, jobId(req), req);
+      const { application, created } = await applicationService.create(req.user, { jobId: jobId(req) }, req);
       res.status(created ? 201 : 200).json({ data: application });
     },
   };

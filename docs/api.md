@@ -11,7 +11,7 @@ Base path: `/api`. JSON in, JSON out. All timestamps are ISO-8601 UTC.
 | Health         | 1     | Implemented |
 | Auth / Me      | 2     | Implemented |
 | Jobs           | 3     | Implemented (Idempotency-Key support lands in phase 7) |
-| Applications   | 4     | Planned     |
+| Applications   | 4     | Implemented (Idempotency-Key support lands in phase 7) |
 | Interviews     | 5     | Planned     |
 | Notifications  | 6     | Planned     |
 | Documents      | 8     | Planned     |
@@ -242,11 +242,14 @@ Company autocomplete for the job form.
 ```
 `status` may be `SAVED` or `APPLIED` (default `SAVED`). Returns `201` with the
 application; returns `200` with the existing application if one already exists
-for this job (`UNIQUE (user_id, job_id)`).
+for this job (`UNIQUE (user_id, job_id)`). `appliedAt` may be back-dated but not
+in the future. Tracking a job again after deleting its application starts a
+fresh application (the audit log keeps the old history).
 
 ### `GET /api/applications`
 Query: `status` (comma-separated), `q`, `sort=updated|deadline|company`,
-`limit`, `cursor`.
+`limit`, `cursor`. `meta.counts` has a count per status for the current search,
+ignoring the `status` filter, so the UI can render tab badges from one call.
 
 ### `GET /api/applications/:id`
 Includes `job`, `company`, `resume`, `timeline[]` (application_events),
@@ -261,7 +264,12 @@ Non-status fields: `notes`, `resumeId`.
 { "status": "OA", "note": "Got HackerRank link", "occurredAt": "2026-10-04T09:00:00Z",
   "expectedVersion": 3 }
 ```
-→ `200` updated application, or `409 INVALID_TRANSITION` / `409 VERSION_CONFLICT`.
+→ `200` updated application, or `409 INVALID_TRANSITION` (`details.allowed`) /
+`409 VERSION_CONFLICT` (`details.currentVersion`, `details.currentStatus`).
+`expectedVersion` is optional; without it the server still uses the version it
+read as an optimistic lock, so two concurrent requests can never both apply.
+`occurredAt` defaults to now and may be back-dated; the timeline is ordered by
+when events were recorded. The first move to `APPLIED` sets `appliedAt`.
 Side effects (in one transaction): timeline row, audit log, outbox event.
 
 ### `DELETE /api/applications/:id`
@@ -274,6 +282,8 @@ POST   /api/applications/:id/prep            { "topic": "Graphs" }
 PATCH  /api/applications/:id/prep/:itemId    { "isDone": true }
 DELETE /api/applications/:id/prep/:itemId
 ```
+Topics are unique per application (`409 CONFLICT` on duplicates) and keep their
+insertion order.
 
 ---
 

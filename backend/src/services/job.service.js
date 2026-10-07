@@ -1,5 +1,6 @@
 import { matchesLocation, matchesRole, scoreJob } from '../domain/jobMatch.js';
-import { badRequest, forbidden, notFound } from '../utils/errors.js';
+import { forbidden, notFound } from '../utils/errors.js';
+import { decodeCursor, nextCursor } from '../utils/pagination.js';
 import { recordAudit } from './audit.service.js';
 import { hashKey } from './cache.service.js';
 import { resolveCompany, toCompanyDto } from './company.service.js';
@@ -36,21 +37,6 @@ export function toJobDto(job, { withDescription = false } = {}) {
     updatedAt: toIso(job.updatedAt),
     ...(withDescription && { description: job.description }),
   };
-}
-
-function encodeCursor(offset) {
-  return Buffer.from(JSON.stringify({ o: offset })).toString('base64url');
-}
-
-function decodeCursor(cursor) {
-  if (!cursor) return 0;
-  try {
-    const { o } = JSON.parse(Buffer.from(cursor, 'base64url').toString());
-    if (Number.isInteger(o) && o >= 0) return o;
-  } catch {
-    // fall through
-  }
-  throw badRequest('Invalid cursor');
 }
 
 /** Filters that Postgres can apply; location/role use synonym matching in JS. */
@@ -173,10 +159,7 @@ export function createJobService({ prisma, cache }) {
 
       return {
         data: page.map((job) => ({ ...job, application: applications.get(job.id) ?? null })),
-        meta: {
-          total: scored.length,
-          nextCursor: offset + query.limit < scored.length ? encodeCursor(offset + query.limit) : null,
-        },
+        meta: { total: scored.length, nextCursor: nextCursor(offset, query.limit, scored.length) },
       };
     },
 

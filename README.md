@@ -10,6 +10,8 @@ applications, manage deadlines and interviews, and never miss a placement event.
 | Opportunities | Job detail |
 |---|---|
 | ![Opportunities](docs/screenshots/jobs.png) | ![Job detail](docs/screenshots/job-detail.png) |
+| **Applications** | **Application detail** |
+| ![Applications](docs/screenshots/applications.png) | ![Application detail](docs/screenshots/application-detail.png) |
 
 ---
 
@@ -21,8 +23,9 @@ applications, manage deadlines and interviews, and never miss a placement event.
 | 1     | Foundation: API, worker, DB, Docker, UI shell | ✅ Done |
 | 2     | Authentication: signup, login, rotating refresh tokens, rate limits, profile | ✅ Done |
 | 3     | Jobs: listings, private jobs, match scoring, search/filters, save, caching | ✅ Done |
-| 4     | Applications: tracker, status transitions, timeline, notes | ⏭ Next |
-| 5–9   | Interviews, workers, reliability, documents, analytics | Planned |
+| 4     | Applications: tracker, status transitions, timeline, notes, prep checklist | ✅ Done |
+| 5     | Interviews & OAs: scheduling, reminders | ⏭ Next |
+| 6–9   | Workers, reliability, documents, analytics | Planned |
 | 10    | Testing & load testing                  | Planned      |
 
 Design docs:

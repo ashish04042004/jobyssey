@@ -1,6 +1,8 @@
 import { createBrowserRouter } from 'react-router';
 import { PublicOnly, RequireAuth } from './auth/guards.jsx';
 import AppLayout from './components/AppLayout.jsx';
+import ApplicationDetail from './pages/ApplicationDetail.jsx';
+import Applications from './pages/Applications.jsx';
 import RouteError from './components/RouteError.jsx';
 import ComingSoon from './pages/ComingSoon.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -32,6 +34,8 @@ export const router = createBrowserRouter([
           { path: 'jobs/new', element: <JobForm key="new" /> },
           { path: 'jobs/:id', element: <JobDetail /> },
           { path: 'jobs/:id/edit', element: <JobForm key="edit" /> },
+          { path: 'applications', element: <Applications /> },
+          { path: 'applications/:id', element: <ApplicationDetail /> },
           ...MODULES.filter((m) => !m.ready).map((module) => ({
             path: module.path.slice(1),
             element: <ComingSoon module={module} />,

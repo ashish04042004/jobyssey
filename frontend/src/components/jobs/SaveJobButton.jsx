@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { STATUS_LABELS } from '../../lib/format.js';
 import { api } from '../../services/api.js';
 import { Button } from '../ui.jsx';
@@ -10,9 +11,13 @@ export default function SaveJobButton({ job, onSaved, size = 'sm' }) {
 
   if (job.application) {
     return (
-      <span className={`inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 text-sm font-medium text-indigo-700 ${padding || 'px-4 py-2'}`}>
+      <Link
+        to={`/applications/${job.application.id}`}
+        title="Open in your tracker"
+        className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-indigo-50 text-sm font-medium text-indigo-700 hover:bg-indigo-100 ${padding || 'px-4 py-2'}`}
+      >
         ✓ {STATUS_LABELS[job.application.status]}
-      </span>
+      </Link>
     );
   }
 

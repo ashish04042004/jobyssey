@@ -1,9 +1,49 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthContext.js';
 import Recommendations from '../components/jobs/Recommendations.jsx';
 import SystemStatus from '../components/SystemStatus.jsx';
+import { api } from '../services/api.js';
 
-const PIPELINE = ['Saved', 'Applied', 'OA', 'Interview', 'Offer'];
+const PIPELINE = [
+  { label: 'Saved', statuses: ['SAVED'] },
+  { label: 'Applied', statuses: ['APPLIED'] },
+  { label: 'OA', statuses: ['OA', 'OA_COMPLETED'] },
+  { label: 'Interview', statuses: ['INTERVIEW'] },
+  { label: 'Offer', statuses: ['OFFER', 'ACCEPTED'] },
+];
+
+function Pipeline() {
+  const [counts, setCounts] = useState(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api.applications
+      .list({ limit: 1 }, controller.signal)
+      .then(({ meta }) => setCounts(meta.counts))
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
+
+  return (
+    <Card title="Application pipeline">
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+        {PIPELINE.map(({ label, statuses }) => (
+          <Link
+            key={label}
+            to={`/applications?status=${statuses[0]}`}
+            className="rounded-lg bg-slate-50 px-3 py-2 transition-colors hover:bg-indigo-50"
+          >
+            <span className="block text-xs font-medium text-slate-500">{label}</span>
+            <span className="mt-1 block text-xl font-semibold text-slate-900">
+              {counts ? statuses.reduce((sum, s) => sum + (counts[s] ?? 0), 0) : '–'}
+            </span>
+          </Link>
+        ))}
+      </div>
+    </Card>
+  );
+}
 
 function greeting(date = new Date()) {
   const hour = date.getHours();
@@ -59,16 +99,7 @@ export default function Dashboard() {
 
           <Recommendations />
 
-          <Card title="Application pipeline">
-            <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
-              {PIPELINE.map((stage) => (
-                <div key={stage} className="rounded-lg bg-slate-50 px-3 py-2">
-                  <dt className="text-xs font-medium text-slate-500">{stage}</dt>
-                  <dd className="mt-1 text-xl font-semibold text-slate-900">0</dd>
-                </div>
-              ))}
-            </dl>
-          </Card>
+          <Pipeline />
         </div>
 
         <SystemStatus />

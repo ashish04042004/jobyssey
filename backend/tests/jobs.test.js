@@ -1,6 +1,4 @@
-import request from 'supertest';
-import { signAccessToken } from '../src/utils/tokens.js';
-import { createTestContext, prisma, validRegistration } from './helpers/integration.js';
+import { apiAs, createTestContext, createUser, prisma } from './helpers/integration.js';
 
 const ctx = createTestContext();
 const DAY = 24 * 60 * 60 * 1000;
@@ -11,18 +9,7 @@ let admin;
 let student;
 let other;
 
-async function createUser(email, role = 'STUDENT', profile = {}) {
-  const { password: _password, ...fields } = validRegistration({ email });
-  const user = await prisma.user.create({ data: { ...fields, passwordHash: 'x', role, ...profile } });
-  return { ...user, auth: `Bearer ${await signAccessToken(user)}` };
-}
-
-const api = (user) => ({
-  get: (path) => request(ctx.app).get(`/api${path}`).set('Authorization', user.auth),
-  post: (path, body) => request(ctx.app).post(`/api${path}`).set('Authorization', user.auth).send(body),
-  patch: (path, body) => request(ctx.app).patch(`/api${path}`).set('Authorization', user.auth).send(body),
-  delete: (path) => request(ctx.app).delete(`/api${path}`).set('Authorization', user.auth),
-});
+const api = (user) => apiAs(ctx.app, user);
 
 async function publish(body) {
   const res = await api(admin).post('/jobs', body);

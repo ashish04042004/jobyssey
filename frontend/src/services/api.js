@@ -110,6 +110,20 @@ export const api = {
   companies: {
     search: (q, signal) => apiRequest(`/companies${toQuery({ q })}`, { signal }),
   },
+
+  applications: {
+    list: (params = {}, signal) => apiRequest(`/applications${toQuery(params)}`, { signal }),
+    get: (id, signal) => apiRequest(`/applications/${id}`, { signal }),
+    create: (body) => apiRequest('/applications', { method: 'POST', body }),
+    update: (id, body) => apiRequest(`/applications/${id}`, { method: 'PATCH', body }),
+    changeStatus: (id, body) => apiRequest(`/applications/${id}/status`, { method: 'PATCH', body }),
+    remove: (id) => apiRequest(`/applications/${id}`, { method: 'DELETE' }),
+    prep: {
+      add: (id, topic) => apiRequest(`/applications/${id}/prep`, { method: 'POST', body: { topic } }),
+      update: (id, itemId, body) => apiRequest(`/applications/${id}/prep/${itemId}`, { method: 'PATCH', body }),
+      remove: (id, itemId) => apiRequest(`/applications/${id}/prep/${itemId}`, { method: 'DELETE' }),
+    },
+  },
 };
 
 function toQuery(params) {

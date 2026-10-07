@@ -20,6 +20,36 @@ export const STATUS_LABELS = {
   WITHDRAWN: 'Withdrawn',
 };
 
+/** Button labels for moving an application into each status. */
+export const TRANSITION_LABELS = {
+  APPLIED: 'I applied',
+  OA: 'Got an OA',
+  OA_COMPLETED: 'Finished the OA',
+  INTERVIEW: 'Interviewing',
+  OFFER: 'Got an offer',
+  ACCEPTED: 'Accept offer',
+  REJECTED: 'Rejected',
+  WITHDRAWN: 'Withdraw',
+};
+
+export const NEGATIVE_STATUSES = new Set(['REJECTED', 'WITHDRAWN']);
+
+export function formatDate(iso, withTime = false) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString(undefined, withTime ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' });
+}
+
+export function timeAgo(iso, now = Date.now()) {
+  const minutes = Math.round((now - new Date(iso).getTime()) / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return formatDate(iso);
+}
+
 export function formatCtc(min, max) {
   if (min == null && max == null) return 'CTC not disclosed';
   if (min != null && max != null && min !== max) return `₹${min}–${max} LPA`;

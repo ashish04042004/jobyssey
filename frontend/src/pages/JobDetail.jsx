@@ -24,6 +24,7 @@ export default function JobDetail() {
   const [job, setJob] = useState(null);
   const [error, setError] = useState(null);
   const [archiving, setArchiving] = useState(false);
+  const [markingApplied, setMarkingApplied] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -55,6 +56,17 @@ export default function JobDetail() {
     } catch (err) {
       setError(err.message);
       setArchiving(false);
+    }
+  };
+
+  const markApplied = async () => {
+    setMarkingApplied(true);
+    try {
+      const { data } = await api.applications.create({ jobId: job.id, status: 'APPLIED' });
+      navigate(`/applications/${data.id}`);
+    } catch (err) {
+      setError(err.message);
+      setMarkingApplied(false);
     }
   };
 
@@ -91,7 +103,14 @@ export default function JobDetail() {
               Apply on company site ↗
             </a>
           )}
-          {job.isActive && <SaveJobButton job={job} size="md" onSaved={(application) => setJob({ ...job, application })} />}
+          {job.isActive && !job.application && (
+            <Button variant="secondary" loading={markingApplied} onClick={markApplied}>
+              I've applied
+            </Button>
+          )}
+          {(job.isActive || job.application) && (
+            <SaveJobButton job={job} size="md" onSaved={(application) => setJob({ ...job, application })} />
+          )}
         </div>
       </header>
 

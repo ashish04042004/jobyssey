@@ -19,6 +19,7 @@ export const MODULES = [
     path: '/applications',
     label: 'Applications',
     icon: 'kanban',
+    ready: true,
     phase: 4,
     summary: 'Track every application from Saved to Offer with a full timeline, notes and the resume you used.',
   },
