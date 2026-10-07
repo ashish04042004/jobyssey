@@ -27,6 +27,7 @@ export const MODULES = [
     path: '/interviews',
     label: 'Interviews & OAs',
     icon: 'calendar',
+    ready: true,
     phase: 5,
     summary: 'Schedule OAs and interview rounds with meeting links and automatic reminders.',
   },

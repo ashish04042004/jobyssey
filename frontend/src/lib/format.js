@@ -34,6 +34,58 @@ export const TRANSITION_LABELS = {
 
 export const NEGATIVE_STATUSES = new Set(['REJECTED', 'WITHDRAWN']);
 
+export const INTERVIEW_TYPES = {
+  OA: 'Online assessment',
+  TECHNICAL: 'Technical',
+  HR: 'HR',
+  MANAGERIAL: 'Managerial',
+  GROUP_DISCUSSION: 'Group discussion',
+  OTHER: 'Other',
+};
+
+export const REMINDER_OPTIONS = [
+  { minutes: 10080, label: '1 week' },
+  { minutes: 1440, label: '1 day' },
+  { minutes: 180, label: '3 hours' },
+  { minutes: 60, label: '1 hour' },
+  { minutes: 15, label: '15 min' },
+];
+
+export function formatOffset(minutes) {
+  const option = REMINDER_OPTIONS.find((o) => o.minutes === minutes);
+  if (option) return option.label;
+  if (minutes % 1440 === 0) return `${minutes / 1440} days`;
+  if (minutes % 60 === 0) return `${minutes / 60} hours`;
+  return `${minutes} min`;
+}
+
+export function startOfToday(now = new Date()) {
+  const day = new Date(now);
+  day.setHours(0, 0, 0, 0);
+  return day;
+}
+
+/** "Today", "Tomorrow", "Yesterday" or e.g. "Thu, 9 Oct". */
+export function dayLabel(iso, now = new Date()) {
+  const days = Math.round((startOfToday(new Date(iso)) - startOfToday(now)) / DAY_MS);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Tomorrow';
+  if (days === -1) return 'Yesterday';
+  return new Date(iso).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+export function formatTime(iso) {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+/** "in 45 min", "in 5 hours", "Tomorrow, 11:00 am", "Thu, 9 Oct, 7:00 pm". */
+export function describeWhen(iso, now = Date.now()) {
+  const diff = new Date(iso).getTime() - now;
+  if (diff > 0 && diff < 60 * 60_000) return `in ${Math.max(1, Math.round(diff / 60_000))} min`;
+  if (diff > 0 && diff < 12 * 60 * 60_000) return `in ${Math.round(diff / (60 * 60_000))} hours`;
+  return `${dayLabel(iso, new Date(now))}, ${formatTime(iso)}`;
+}
+
 export function formatDate(iso, withTime = false) {
   if (!iso) return '';
   return new Date(iso).toLocaleString(undefined, withTime ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' });

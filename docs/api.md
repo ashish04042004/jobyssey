@@ -12,7 +12,7 @@ Base path: `/api`. JSON in, JSON out. All timestamps are ISO-8601 UTC.
 | Auth / Me      | 2     | Implemented |
 | Jobs           | 3     | Implemented (Idempotency-Key support lands in phase 7) |
 | Applications   | 4     | Implemented (Idempotency-Key support lands in phase 7) |
-| Interviews     | 5     | Planned     |
+| Interviews / Agenda | 5 | Implemented (reminder rows are created; delivery lands in phase 6) |
 | Notifications  | 6     | Planned     |
 | Documents      | 8     | Planned     |
 | Analytics      | 9     | Planned     |
@@ -289,22 +289,55 @@ insertion order.
 
 ## 7. Interviews / OAs
 
-### `POST /api/applications/:id/interviews` **[idem]**
+### `POST /api/applications/:id/interviews` **[idem]** — rate limit 30/min
 ```json
 { "type": "OA", "title": "HackerRank OA", "scheduledAt": "2026-10-08T13:30:00Z",
   "endsAt": "2026-10-08T18:29:00Z", "meetingUrl": null, "notes": null,
   "reminderOffsetsMinutes": [1440, 60] }
 ```
-Creates reminders (via outbox → worker).
+`type`: `OA | TECHNICAL | HR | MANAGERIAL | GROUP_DISCUSSION | OTHER`. For an OA,
+`scheduledAt` is when the test opens and `endsAt` when it is due. `endsAt` must be
+after `scheduledAt`; `meetingUrl` must be http(s). `reminderOffsetsMinutes`
+(default `[1440, 60]`): up to 5 values between 5 minutes and 7 days, deduplicated.
+Past rounds can be logged (they get no reminders).
+
+In the same transaction the server writes one `reminders` row per offset whose
+time is still in the future (`job_key = interview:<id>:<offset>:<targetMs>`), an
+audit row and an `interview.scheduled` outbox event. → `201` with the interview
+and its `reminders[]`.
 
 ### `GET /api/interviews`
-Query: `from`, `to` (defaults: now → +30 days), `status`. Calendar/agenda view.
+Query: `from`, `to`, `status` (comma-separated), `order=asc|desc`, `limit`,
+`cursor`. Each item includes `application.job` for display. Rounds of deleted
+applications are hidden.
+
+### `GET /api/interviews/:id`
+Includes `reminders[]` (`remindAt`, `status`), excluding cancelled ones.
 
 ### `PATCH /api/interviews/:id`
-Changing `scheduledAt`/`reminderOffsetsMinutes` reschedules reminders;
-`status: "CANCELLED"` cancels them.
+Any create field plus `status: SCHEDULED | COMPLETED | CANCELLED`. Reminder rows
+are reconciled on every change: moving `scheduledAt` cancels the old rows and
+creates new ones (moving it back revives them); `COMPLETED`/`CANCELLED` cancels
+them; back to `SCHEDULED` restores them. Outbox: `interview.rescheduled`,
+`interview.cancelled`, `interview.completed`.
 
-### `DELETE /api/interviews/:id` → `204`.
+### `DELETE /api/interviews/:id` → `204`; reminders are cancelled.
+
+Moving an application to `REJECTED` or `WITHDRAWN` cancels its upcoming
+`SCHEDULED` rounds and their reminders; soft-deleting it cancels all of them.
+
+### `GET /api/agenda?from=…&to=…`
+Range ≤ 62 days. Merges scheduled rounds with application deadlines of jobs
+that are still `SAVED` (not yet applied to), sorted by time:
+```json
+{ "data": [
+  { "kind": "OA", "at": "…", "interview": { "id": "…", "type": "OA", "title": "…",
+    "endsAt": null, "meetingUrl": "…" }, "application": { "id": "…", "status": "OA" },
+    "job": { "id": "…", "title": "SDE Intern", "company": { "name": "Flipkart" } } },
+  { "kind": "DEADLINE", "at": "…", "interview": null, "application": { … }, "job": { … } }
+] }
+```
+`kind` is `OA | INTERVIEW | DEADLINE`. Powers the dashboard's "Coming up" card.
 
 ---
 

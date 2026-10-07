@@ -6,6 +6,7 @@ import Applications from './pages/Applications.jsx';
 import RouteError from './components/RouteError.jsx';
 import ComingSoon from './pages/ComingSoon.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import Interviews from './pages/Interviews.jsx';
 import JobDetail from './pages/JobDetail.jsx';
 import JobForm from './pages/JobForm.jsx';
 import Jobs from './pages/Jobs.jsx';
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
           { path: 'jobs/:id/edit', element: <JobForm key="edit" /> },
           { path: 'applications', element: <Applications /> },
           { path: 'applications/:id', element: <ApplicationDetail /> },
+          { path: 'interviews', element: <Interviews /> },
           ...MODULES.filter((m) => !m.ready).map((module) => ({
             path: module.path.slice(1),
             element: <ComingSoon module={module} />,

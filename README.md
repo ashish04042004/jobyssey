@@ -12,6 +12,8 @@ applications, manage deadlines and interviews, and never miss a placement event.
 | ![Opportunities](docs/screenshots/jobs.png) | ![Job detail](docs/screenshots/job-detail.png) |
 | **Applications** | **Application detail** |
 | ![Applications](docs/screenshots/applications.png) | ![Application detail](docs/screenshots/application-detail.png) |
+| **Interviews & OAs** | |
+| ![Interviews & OAs](docs/screenshots/interviews.png) | |
 
 ---
 
@@ -24,8 +26,9 @@ applications, manage deadlines and interviews, and never miss a placement event.
 | 2     | Authentication: signup, login, rotating refresh tokens, rate limits, profile | ✅ Done |
 | 3     | Jobs: listings, private jobs, match scoring, search/filters, save, caching | ✅ Done |
 | 4     | Applications: tracker, status transitions, timeline, notes, prep checklist | ✅ Done |
-| 5     | Interviews & OAs: scheduling, reminders | ⏭ Next |
-| 6–9   | Workers, reliability, documents, analytics | Planned |
+| 5     | Interviews & OAs: rounds, meeting links, reminder schedule, agenda | ✅ Done |
+| 6     | Workers: reminder delivery, notifications, job matching | ⏭ Next |
+| 7–9   | Reliability, documents, analytics       | Planned      |
 | 10    | Testing & load testing                  | Planned      |
 
 Design docs:

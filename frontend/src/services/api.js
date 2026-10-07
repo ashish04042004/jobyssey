@@ -124,6 +124,16 @@ export const api = {
       remove: (id, itemId) => apiRequest(`/applications/${id}/prep/${itemId}`, { method: 'DELETE' }),
     },
   },
+
+  interviews: {
+    list: (params = {}, signal) => apiRequest(`/interviews${toQuery(params)}`, { signal }),
+    get: (id, signal) => apiRequest(`/interviews/${id}`, { signal }),
+    schedule: (applicationId, body) => apiRequest(`/applications/${applicationId}/interviews`, { method: 'POST', body }),
+    update: (id, body) => apiRequest(`/interviews/${id}`, { method: 'PATCH', body }),
+    remove: (id) => apiRequest(`/interviews/${id}`, { method: 'DELETE' }),
+  },
+
+  agenda: (params, signal) => apiRequest(`/agenda${toQuery(params)}`, { signal }),
 };
 
 function toQuery(params) {

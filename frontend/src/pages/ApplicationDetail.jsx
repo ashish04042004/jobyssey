@@ -9,7 +9,9 @@ import FullPageLoader from '../components/FullPageLoader.jsx';
 import CompanyAvatar from '../components/jobs/CompanyAvatar.jsx';
 import { DeadlineChip } from '../components/jobs/JobCard.jsx';
 import { Alert, Button } from '../components/ui.jsx';
-import { formatDate } from '../lib/format.js';
+import InterviewCard from '../components/interviews/InterviewCard.jsx';
+import InterviewForm from '../components/interviews/InterviewForm.jsx';
+import { dayLabel, formatDate, STATUS_LABELS } from '../lib/format.js';
 import { api } from '../services/api.js';
 
 function Card({ title, aside, children }) {
@@ -31,6 +33,8 @@ export default function ApplicationDetail() {
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [removing, setRemoving] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
+  const [suggestion, setSuggestion] = useState(null);
 
   const load = useCallback(
     (signal) =>
@@ -72,6 +76,17 @@ export default function ApplicationDetail() {
     } catch (err) {
       setNotice({ tone: 'error', text: err.message });
       setRemoving(false);
+    }
+  };
+
+  const applySuggestion = async (status) => {
+    setSuggestion(null);
+    try {
+      const { data } = await api.applications.changeStatus(application.id, { status, expectedVersion: application.version });
+      setApplication(data);
+    } catch (err) {
+      setNotice({ tone: 'error', text: err.message });
+      await load();
     }
   };
 
@@ -127,6 +142,56 @@ export default function ApplicationDetail() {
               }}
               onConflict={onConflict}
             />
+          </Card>
+
+          <Card
+            title="Interviews & OAs"
+            aside={
+              !scheduling && (
+                <Button variant="secondary" onClick={() => setScheduling(true)} className="px-3 py-1.5">
+                  + Schedule round
+                </Button>
+              )
+            }
+          >
+            <div className="space-y-3">
+              {suggestion && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3">
+                  <p className="text-sm text-indigo-900">
+                    Move this application to <span className="font-semibold">{STATUS_LABELS[suggestion]}</span> as well?
+                  </p>
+                  <div className="flex gap-2">
+                    <Button onClick={() => applySuggestion(suggestion)} className="px-3 py-1.5">
+                      Move to {STATUS_LABELS[suggestion]}
+                    </Button>
+                    <Button variant="ghost" onClick={() => setSuggestion(null)} className="px-3 py-1.5">
+                      Not now
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {scheduling && (
+                <InterviewForm
+                  applicationId={application.id}
+                  onCancel={() => setScheduling(false)}
+                  onSaved={async (interview) => {
+                    setScheduling(false);
+                    const next = interview.type === 'OA' ? 'OA' : 'INTERVIEW';
+                    if (application.allowedTransitions.includes(next)) setSuggestion(next);
+                    await load();
+                  }}
+                />
+              )}
+              {application.interviews.length === 0 && !scheduling && (
+                <p className="text-sm text-slate-500">No rounds yet. Add OA links and interview slots to get reminders before each one.</p>
+              )}
+              {application.interviews.map((interview) => (
+                <div key={interview.id}>
+                  <p className="mb-1 text-xs font-medium text-slate-500">{dayLabel(interview.scheduledAt)}</p>
+                  <InterviewCard interview={{ ...interview, applicationId: application.id }} onChanged={() => load()} onRemoved={() => load()} />
+                </div>
+              ))}
+            </div>
           </Card>
 
           <Card title="Timeline">

@@ -160,6 +160,7 @@ between enqueue and `published_at` update) a no-op. Delivery is therefore
 | `interview.scheduled`          | interviews service      | reminders                         |
 | `interview.rescheduled`        | interviews service      | reminders (cancel + recreate)     |
 | `interview.cancelled`          | interviews service      | reminders (cancel)                |
+| `interview.completed`          | interviews service      | analytics                         |
 | `job.published`                | jobs service (admin)    | job matching                      |
 | `document.uploaded`            | documents service       | audit only                        |
 
@@ -190,8 +191,11 @@ Postgres `reminders` rows are the source of truth; BullMQ delayed jobs are the
 delivery mechanism.
 
 1. When an interview/OA is scheduled (or an application deadline is known), the
-   service creates `reminders` rows (e.g. 24h and 1h before), each with a
-   deterministic `job_key` such as `interview:<id>:1440`.
+   service creates `reminders` rows (e.g. 24h and 1h before) **in the same
+   transaction**, each with a deterministic `job_key` such as
+   `interview:<id>:1440:<targetMs>`. Including the target time means a
+   reschedule produces new keys, and moving back revives the old rows instead of
+   colliding with them. Offsets whose time has already passed are skipped.
 2. The worker enqueues a delayed job with `jobId = reminder.id`.
 3. On fire, the worker re-reads the reminder: if it is not `PENDING`/`QUEUED`, or
    the target time has changed, it exits (stale job). Otherwise it creates the

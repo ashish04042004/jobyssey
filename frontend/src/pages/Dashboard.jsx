@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthContext.js';
 import Recommendations from '../components/jobs/Recommendations.jsx';
 import SystemStatus from '../components/SystemStatus.jsx';
+import TodayAgenda from '../components/TodayAgenda.jsx';
 import { api } from '../services/api.js';
 
 const PIPELINE = [
@@ -91,11 +92,7 @@ export default function Dashboard() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <Card title="Today">
-            <p className="mt-3 text-sm text-slate-500">
-              Nothing due yet. Upcoming OAs, interviews and application deadlines will show up here.
-            </p>
-          </Card>
+          <TodayAgenda />
 
           <Recommendations />
 

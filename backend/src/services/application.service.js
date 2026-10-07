@@ -4,11 +4,12 @@ import { decodeCursor, nextCursor } from '../utils/pagination.js';
 import { recordAudit } from './audit.service.js';
 import { toCompanyDto } from './company.service.js';
 import { recordEvent } from './outbox.service.js';
+import { cancelReminders } from './reminder.service.js';
 
 const S = ApplicationStatus;
 const iso = (date) => date?.toISOString() ?? null;
 
-const JOB_SUMMARY = {
+export const JOB_SUMMARY = {
   select: {
     id: true,
     title: true,
@@ -22,7 +23,7 @@ const JOB_SUMMARY = {
   },
 };
 
-function toJobSummary(job) {
+export function toJobSummary(job) {
   return {
     id: job.id,
     title: job.title,
@@ -76,7 +77,10 @@ function toDetail(application) {
       title: interview.title,
       scheduledAt: iso(interview.scheduledAt),
       endsAt: iso(interview.endsAt),
+      meetingUrl: interview.meetingUrl,
+      notes: interview.notes,
       status: interview.status,
+      reminderOffsetsMinutes: interview.reminderOffsetsMinutes,
     })),
     prepItems: application.prepItems.map(toPrepItem),
   };
@@ -267,6 +271,16 @@ export function createApplicationService({ prisma, jobService }) {
         await tx.applicationEvent.create({
           data: { applicationId: id, actorId: user.id, fromStatus: from, toStatus: to, note: note || null, occurredAt },
         });
+        if (to === S.REJECTED || to === S.WITHDRAWN) {
+          // No reminders for rounds that will no longer happen.
+          const upcoming = await tx.interview.findMany({
+            where: { applicationId: id, status: 'SCHEDULED', scheduledAt: { gt: new Date() } },
+            select: { id: true },
+          });
+          const ids = upcoming.map((i) => i.id);
+          await tx.interview.updateMany({ where: { id: { in: ids } }, data: { status: 'CANCELLED' } });
+          await cancelReminders(tx, 'interview', ids);
+        }
         await recordAudit(tx, {
           actorId: user.id,
           action: 'application.status_changed',
@@ -288,8 +302,10 @@ export function createApplicationService({ prisma, jobService }) {
 
     async remove(user, id, req) {
       await findOwned(user, id);
+      const interviews = await prisma.interview.findMany({ where: { applicationId: id }, select: { id: true } });
       await prisma.$transaction([
         prisma.application.update({ where: { id }, data: { deletedAt: new Date() } }),
+        cancelReminders(prisma, 'interview', interviews.map((i) => i.id)),
         recordAudit(prisma, { actorId: user.id, action: 'application.deleted', entityType: 'application', entityId: id, req }),
       ]);
     },
