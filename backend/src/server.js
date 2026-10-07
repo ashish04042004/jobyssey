@@ -25,7 +25,9 @@ const server = app.listen(env.PORT, () => {
 });
 server.keepAliveTimeout = 65_000;
 
-const workerRuntime = env.RUN_WORKER_IN_API ? startWorkerRuntime({ redis, logger }) : null;
+const workerRuntime = env.RUN_WORKER_IN_API
+  ? await startWorkerRuntime({ prisma, redis, logger, redisUrl: env.REDIS_URL })
+  : null;
 
 registerShutdown(logger, [
   ['http', () => new Promise((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())))],

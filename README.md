@@ -12,8 +12,8 @@ applications, manage deadlines and interviews, and never miss a placement event.
 | ![Opportunities](docs/screenshots/jobs.png) | ![Job detail](docs/screenshots/job-detail.png) |
 | **Applications** | **Application detail** |
 | ![Applications](docs/screenshots/applications.png) | ![Application detail](docs/screenshots/application-detail.png) |
-| **Interviews & OAs** | |
-| ![Interviews & OAs](docs/screenshots/interviews.png) | |
+| **Interviews & OAs** | **Notifications** |
+| ![Interviews & OAs](docs/screenshots/interviews.png) | ![Notifications](docs/screenshots/notifications.png) |
 
 ---
 
@@ -27,8 +27,9 @@ applications, manage deadlines and interviews, and never miss a placement event.
 | 3     | Jobs: listings, private jobs, match scoring, search/filters, save, caching | ✅ Done |
 | 4     | Applications: tracker, status transitions, timeline, notes, prep checklist | ✅ Done |
 | 5     | Interviews & OAs: rounds, meeting links, reminder schedule, agenda | ✅ Done |
-| 6     | Workers: reminder delivery, notifications, job matching | ⏭ Next |
-| 7–9   | Reliability, documents, analytics       | Planned      |
+| 6     | Workers: outbox relay, BullMQ reminders, notifications, job matching, stale nudges | ✅ Done |
+| 7     | Reliability: idempotency keys, retries, failed jobs | ⏭ Next |
+| 8–9   | Documents, analytics                    | Planned      |
 | 10    | Testing & load testing                  | Planned      |
 
 Design docs:
@@ -47,12 +48,13 @@ backend/              Express API + background worker (one image, two entrypoint
   src/
     config/           env validation (zod), logger, redis
     controllers/      request → service → response
-    domain/           pure business rules (application state machine)
-    middleware/       request id, errors (auth, rate limit, idempotency next)
+    domain/           pure business rules (state machine, job match scoring)
+    middleware/       request id, errors, auth, rate limits (idempotency next)
     models/           Prisma client
+    queues/           BullMQ queue definitions (only the worker enqueues)
     routes/           HTTP wiring
     services/         business logic
-    workers/          background processors (heartbeat today; BullMQ in phase 6)
+    workers/          outbox relay, event handlers, reminders, job matching, sweeps
     server.js         API entrypoint
     worker.js         worker entrypoint
   tests/              Jest + Supertest

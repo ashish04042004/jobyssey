@@ -12,6 +12,7 @@ import JobForm from './pages/JobForm.jsx';
 import Jobs from './pages/Jobs.jsx';
 import Login from './pages/Login.jsx';
 import NotFound from './pages/NotFound.jsx';
+import Notifications from './pages/Notifications.jsx';
 import Profile from './pages/Profile.jsx';
 import Register from './pages/Register.jsx';
 import { MODULES } from './modules.js';
@@ -38,6 +39,7 @@ export const router = createBrowserRouter([
           { path: 'applications', element: <Applications /> },
           { path: 'applications/:id', element: <ApplicationDetail /> },
           { path: 'interviews', element: <Interviews /> },
+          { path: 'notifications', element: <Notifications /> },
           ...MODULES.filter((m) => !m.ready).map((module) => ({
             path: module.path.slice(1),
             element: <ComingSoon module={module} />,

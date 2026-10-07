@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router';
 import { useAuth } from '../auth/AuthContext.js';
+import { useUnreadCount } from '../hooks/useUnreadCount.js';
 import Icon from './Icon.jsx';
 import Logo from './Logo.jsx';
 import { MODULES } from '../modules.js';
 
 function NavItems({ onNavigate }) {
+  const unread = useUnreadCount();
   return (
     <nav className="flex flex-col gap-1">
       {MODULES.map((module) => (
@@ -22,6 +24,11 @@ function NavItems({ onNavigate }) {
         >
           <Icon name={module.icon} />
           {module.label}
+          {module.path === '/notifications' && unread > 0 && (
+            <span className="ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-xs font-semibold text-white" aria-label={`${unread} unread`}>
+              {unread > 99 ? '99+' : unread}
+            </span>
+          )}
         </NavLink>
       ))}
     </nav>

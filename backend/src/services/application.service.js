@@ -306,6 +306,13 @@ export function createApplicationService({ prisma, jobService }) {
       await prisma.$transaction([
         prisma.application.update({ where: { id }, data: { deletedAt: new Date() } }),
         cancelReminders(prisma, 'interview', interviews.map((i) => i.id)),
+        cancelReminders(prisma, 'application', [id]),
+        recordEvent(prisma, {
+          type: 'application.deleted',
+          aggregateType: 'application',
+          aggregateId: id,
+          payload: { applicationId: id, userId: user.id },
+        }),
         recordAudit(prisma, { actorId: user.id, action: 'application.deleted', entityType: 'application', entityId: id, req }),
       ]);
     },

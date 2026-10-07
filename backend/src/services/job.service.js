@@ -212,6 +212,13 @@ export function createJobService({ prisma, cache }) {
           metadata: { fields: Object.keys(changes) },
           req,
         });
+        const published = result.visibility === 'PUBLIC' && job.visibility !== 'PUBLIC';
+        await recordEvent(tx, {
+          type: published ? 'job.published' : 'job.updated',
+          aggregateType: 'job',
+          aggregateId: id,
+          payload: { jobId: id, fields: Object.keys(changes) },
+        });
         return result;
       });
 
@@ -226,6 +233,7 @@ export function createJobService({ prisma, cache }) {
       await prisma.$transaction([
         prisma.job.update({ where: { id }, data: { isActive: false } }),
         recordAudit(prisma, { actorId: user.id, action: 'job.archived', entityType: 'job', entityId: id, req }),
+        recordEvent(prisma, { type: 'job.archived', aggregateType: 'job', aggregateId: id, payload: { jobId: id } }),
       ]);
       await invalidateIfPublic(job.visibility);
     },

@@ -12,8 +12,8 @@ Base path: `/api`. JSON in, JSON out. All timestamps are ISO-8601 UTC.
 | Auth / Me      | 2     | Implemented |
 | Jobs           | 3     | Implemented (Idempotency-Key support lands in phase 7) |
 | Applications   | 4     | Implemented (Idempotency-Key support lands in phase 7) |
-| Interviews / Agenda | 5 | Implemented (reminder rows are created; delivery lands in phase 6) |
-| Notifications  | 6     | Planned     |
+| Interviews / Agenda | 5 | Implemented |
+| Notifications  | 6     | Implemented |
 | Documents      | 8     | Planned     |
 | Analytics      | 9     | Planned     |
 
@@ -370,6 +370,15 @@ GET   /api/notifications/unread-count
 PATCH /api/notifications/:id/read
 PATCH /api/notifications/read-all
 ```
+`GET /api/notifications` returns newest first with
+`meta: { total, unread, nextCursor }`; each item is
+`{ id, type, title, body, link, readAt, createdAt }` where `type` is
+`INTERVIEW | DEADLINE | JOB_MATCH | STALE_APPLICATION | SYSTEM` and `link` is an
+in-app path. `unread-count` → `{ data: { count } }` (the SPA polls it every
+minute and on tab focus). `read-all` → `{ data: { updated } }`.
+
+Notifications are created only by the worker (reminders, job matching, stale
+nudges); there is no public create endpoint.
 
 ---
 

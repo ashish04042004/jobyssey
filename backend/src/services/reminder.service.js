@@ -39,6 +39,27 @@ export async function syncReminders(tx, { userId, entityType, entityId, targetAt
   });
 }
 
+export const DEADLINE_REMINDER_OFFSETS = [1440, 180];
+
+/**
+ * Deadline reminders for a job the student saved but has not applied to yet.
+ * Run by the worker whenever the application or its job changes.
+ */
+export async function syncDeadlineReminders(db, applicationId, now = new Date()) {
+  const application = await db.application.findUnique({ where: { id: applicationId }, include: { job: true } });
+  if (!application) return;
+  const deadline = application.job.applicationDeadline;
+  await syncReminders(db, {
+    userId: application.userId,
+    entityType: 'application',
+    entityId: application.id,
+    targetAt: deadline ?? now,
+    offsetsMinutes: DEADLINE_REMINDER_OFFSETS,
+    active: Boolean(deadline) && application.status === 'SAVED' && !application.deletedAt && application.job.isActive,
+    now,
+  });
+}
+
 export function cancelReminders(tx, entityType, entityIds) {
   return tx.reminder.updateMany({
     where: { entityType, entityId: { in: entityIds }, status: { in: LIVE } },

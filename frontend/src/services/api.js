@@ -134,6 +134,13 @@ export const api = {
   },
 
   agenda: (params, signal) => apiRequest(`/agenda${toQuery(params)}`, { signal }),
+
+  notifications: {
+    list: (params = {}, signal) => apiRequest(`/notifications${toQuery(params)}`, { signal }),
+    unreadCount: (signal) => apiRequest('/notifications/unread-count', { signal }),
+    markRead: (id) => apiRequest(`/notifications/${id}/read`, { method: 'PATCH' }),
+    markAllRead: () => apiRequest('/notifications/read-all', { method: 'PATCH' }),
+  },
 };
 
 function toQuery(params) {

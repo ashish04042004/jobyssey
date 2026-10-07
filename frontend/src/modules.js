@@ -42,6 +42,7 @@ export const MODULES = [
     path: '/notifications',
     label: 'Notifications',
     icon: 'bell',
+    ready: true,
     phase: 6,
     summary: 'Deadline and interview reminders, new matching opportunities, and nudges for stale applications.',
   },

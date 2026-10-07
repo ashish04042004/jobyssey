@@ -5,6 +5,7 @@ import { createApplicationService } from '../services/application.service.js';
 import { createCache } from '../services/cache.service.js';
 import { createInterviewService } from '../services/interview.service.js';
 import { createJobService } from '../services/job.service.js';
+import { createNotificationService } from '../services/notification.service.js';
 import { applicationRoutes } from './application.routes.js';
 import { authRoutes } from './auth.routes.js';
 import { companyRoutes } from './company.routes.js';
@@ -12,13 +13,15 @@ import { healthRoutes } from './health.routes.js';
 import { agendaRoutes, interviewRoutes } from './interview.routes.js';
 import { jobRoutes } from './job.routes.js';
 import { meRoutes } from './me.routes.js';
+import { notificationRoutes } from './notification.routes.js';
 
 export function apiRoutes(deps) {
   const cache = createCache({ redis: deps.redis, logger: deps.logger });
   const jobService = createJobService({ prisma: deps.prisma, cache });
   const applicationService = createApplicationService({ prisma: deps.prisma, jobService });
   const interviewService = createInterviewService({ prisma: deps.prisma });
-  const services = { ...deps, jobService, applicationService, interviewService };
+  const notificationService = createNotificationService({ prisma: deps.prisma });
+  const services = { ...deps, jobService, applicationService, interviewService, notificationService };
 
   const router = Router();
   const protectedRoute = [
@@ -34,6 +37,7 @@ export function apiRoutes(deps) {
   router.use('/applications', ...protectedRoute, applicationRoutes(services));
   router.use('/interviews', ...protectedRoute, interviewRoutes(services));
   router.use('/agenda', ...protectedRoute, agendaRoutes(services));
+  router.use('/notifications', ...protectedRoute, notificationRoutes(services));
 
   return router;
 }

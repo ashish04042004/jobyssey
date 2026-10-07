@@ -155,14 +155,19 @@ between enqueue and `published_at` update) a no-op. Delivery is therefore
 
 | Event                          | Producer                | Consumers                         |
 |--------------------------------|-------------------------|-----------------------------------|
-| `application.created`          | applications service    | analytics                         |
-| `application.status_changed`   | applications service    | notifications, reminders, analytics |
-| `interview.scheduled`          | interviews service      | reminders                         |
-| `interview.rescheduled`        | interviews service      | reminders (cancel + recreate)     |
-| `interview.cancelled`          | interviews service      | reminders (cancel)                |
-| `interview.completed`          | interviews service      | analytics                         |
-| `job.published`                | jobs service (admin)    | job matching                      |
+| `application.created`          | applications service    | deadline reminders, analytics     |
+| `application.status_changed`   | applications service    | deadline reminders, analytics     |
+| `application.deleted`          | applications service    | deadline reminders (cancel)       |
+| `interview.scheduled`          | interviews service      | reminder queue                    |
+| `interview.rescheduled`        | interviews service      | reminder queue (enqueue new, drop old jobs) |
+| `interview.cancelled`          | interviews service      | reminder queue (drop jobs)        |
+| `interview.completed`          | interviews service      | reminder queue, analytics         |
+| `job.published`                | jobs service (admin)    | job matching, deadline reminders  |
+| `job.updated` / `job.archived` | jobs service            | deadline reminders of saved applications |
 | `document.uploaded`            | documents service       | audit only                        |
+
+Handlers live in `backend/src/workers/eventHandlers.js`; unknown event types
+are acknowledged and ignored so producers can ship ahead of consumers.
 
 ---
 
@@ -170,10 +175,14 @@ between enqueue and `published_at` update) a no-op. Delivery is therefore
 
 | Queue             | Jobs                                                    |
 |-------------------|---------------------------------------------------------|
-| `domain-events`   | fan-out of outbox events to handlers                    |
-| `reminders`       | delayed `reminder.fire` jobs; repeatable `reminder.sweep` |
-| `job-matching`    | `job.match` — score a new job against all users          |
-| `notifications`   | `notification.create` — write in-app notification       |
+| `domain-events`   | fan-out of outbox events to handlers (jobId = event id) |
+| `reminders`       | delayed `reminder.fire` (jobId = reminder id); schedulers `reminder.sweep` (5 min) and `application.stale-sweep` (6 h) |
+| `job-matching`    | `job.match` (jobId = `match-<jobId>`) — score a new job against all students |
+
+In-app notifications are written directly by these consumers (one insert with
+`ON CONFLICT DO NOTHING` on `(user_id, dedupe_key)`), so there is no separate
+notifications queue: one fewer queue polling Upstash. All queues use the
+`jobyssey` key prefix.
 
 Job options (defaults): `attempts: 5`, exponential backoff starting at 2s,
 `removeOnComplete: 1000`, `removeOnFail: 5000` (kept for inspection).
@@ -196,14 +205,33 @@ delivery mechanism.
    `interview:<id>:1440:<targetMs>`. Including the target time means a
    reschedule produces new keys, and moving back revives the old rows instead of
    colliding with them. Offsets whose time has already passed are skipped.
-2. The worker enqueues a delayed job with `jobId = reminder.id`.
-3. On fire, the worker re-reads the reminder: if it is not `PENDING`/`QUEUED`, or
-   the target time has changed, it exits (stale job). Otherwise it creates the
-   notification (with `dedupe_key = job_key`) and marks the reminder `SENT`.
+   Deadline reminders (1 day and 3 hours before a job's application deadline,
+   while the application is still `SAVED`) are maintained by the worker in
+   response to application and job events.
+2. On the matching outbox event the worker enqueues a delayed job with
+   `jobId = reminder.id` and marks the row `QUEUED`; delayed jobs of cancelled
+   rows are removed.
+3. On fire, the worker re-reads the reminder and its entity. If the row is no
+   longer `PENDING`/`QUEUED`, the interview moved, was cancelled, or the
+   application was applied to/deleted, it marks the row `CANCELLED` and exits
+   (stale job). If the target time already passed (worker was asleep), it is
+   cancelled as missed rather than sending "starts in 1 hour" after the fact.
+   Otherwise it inserts the notification (`dedupe_key = job_key`) and marks the
+   row `SENT` in one transaction. The text uses the time actually left
+   ("opens in 5 hours"), not the nominal offset.
 4. Rescheduling marks old rows `CANCELLED` and creates new ones.
-5. A repeatable `reminder.sweep` job (every 5 min) enqueues any due reminders
-   that are still `PENDING` — this recovers from a Redis flush or a worker that
-   was asleep.
+5. The `reminder.sweep` scheduler (every 5 min, and once at worker start)
+   enqueues `PENDING` rows the event path missed and re-creates delayed jobs for
+   `QUEUED` rows more than 10 minutes overdue whose job is gone — this recovers
+   from a Redis flush or a worker that was asleep.
+6. After the last retry fails, the row is marked `FAILED` with `last_error`.
+
+### Other background jobs
+- **Job matching:** `job.published` → `job.match` scores the job against every
+  student (batches of 500) and notifies those scoring ≥ 75, deduped per job.
+- **Stale applications:** every 6 hours, applications in `APPLIED`, `OA`,
+  `OA_COMPLETED` or `INTERVIEW` with no status change for 14 days get one nudge
+  per status (`dedupe_key = stale:<id>:<statusChangedAtMs>`).
 
 ---
 
