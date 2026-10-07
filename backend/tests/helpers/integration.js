@@ -1,6 +1,11 @@
+import { rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import pino from 'pino';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
+import { env } from '../../src/config/env.js';
+import { createLocalStorage } from '../../src/storage/localStorage.js';
 import { signAccessToken } from '../../src/utils/tokens.js';
 import { createRedis } from '../../src/config/redis.js';
 import { prisma } from '../../src/models/prisma.js';
@@ -9,18 +14,22 @@ export { prisma };
 
 export function createTestContext({ queues } = {}) {
   const redis = createRedis('test');
+  const storageDir = path.join(os.tmpdir(), `jobyssey-test-storage-${process.pid}`);
+  const storage = createLocalStorage({ dir: storageDir, secret: env.JWT_ACCESS_SECRET });
   const app = createApp({
     logger: pino({ level: 'silent' }),
     corsOrigins: ['http://localhost:5173'],
     prisma,
     redis,
     queues,
+    storage,
     healthService: { readiness: async () => ({ status: 'ok', checks: {} }) },
   });
 
   return {
     app,
     redis,
+    storage,
     async reset() {
       const tables = await prisma.$queryRaw`
         SELECT tablename FROM pg_tables
@@ -30,6 +39,7 @@ export function createTestContext({ queues } = {}) {
       await redis.flushdb();
     },
     async close() {
+      await rm(storageDir, { recursive: true, force: true });
       await redis.quit();
       await prisma.$disconnect();
     },

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import NotesEditor from '../components/applications/NotesEditor.jsx';
 import PrepChecklist from '../components/applications/PrepChecklist.jsx';
+import ResumePicker from '../components/applications/ResumePicker.jsx';
 import StatusBadge from '../components/applications/StatusBadge.jsx';
 import StatusChanger from '../components/applications/StatusChanger.jsx';
 import Timeline from '../components/applications/Timeline.jsx';
@@ -200,6 +201,10 @@ export default function ApplicationDetail() {
         </div>
 
         <aside className="space-y-6">
+          <Card title="Resume used">
+            <ResumePicker application={application} onSaved={(data) => setApplication(data)} />
+          </Card>
+
           <Card title="Notes">
             <NotesEditor key={application.id} application={application} onSaved={(data) => setApplication(data)} />
           </Card>

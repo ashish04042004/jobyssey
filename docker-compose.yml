@@ -9,6 +9,8 @@ x-backend-env: &backend-env
   JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-only-access-secret-change-me-0123456789}
   # Local Docker serves plain HTTP; real deployments must keep the default (true).
   COOKIE_SECURE: "false"
+  STORAGE_DRIVER: local
+  STORAGE_LOCAL_DIR: /app/storage
 
 services:
   postgres:
@@ -59,6 +61,8 @@ services:
       PORT: 4000
     ports:
       - "${API_PORT:-4001}:4000"
+    volumes:
+      - documents:/app/storage
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -76,6 +80,8 @@ services:
     image: jobyssey-backend:local
     command: ["node", "src/worker.js"]
     environment: *backend-env
+    volumes:
+      - documents:/app/storage
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -86,3 +92,4 @@ services:
 volumes:
   pgdata:
   redisdata:
+  documents:

@@ -35,6 +35,7 @@ export const MODULES = [
     path: '/documents',
     label: 'Documents',
     icon: 'file',
+    ready: true,
     phase: 8,
     summary: 'Keep tailored resume versions and cover letters, and attach the right one to each application.',
   },

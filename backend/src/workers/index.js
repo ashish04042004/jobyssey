@@ -20,10 +20,10 @@ const SCHEDULES = [
  * Safe to run several copies: the outbox relay uses SKIP LOCKED and every
  * consumer is idempotent.
  */
-export async function startWorkerRuntime({ prisma, redis, logger, redisUrl, prefix = 'jobyssey', relayIntervalMs }) {
+export async function startWorkerRuntime({ prisma, redis, logger, storage, redisUrl, prefix = 'jobyssey', relayIntervalMs }) {
   const connection = bullConnection(redisUrl);
   const queues = createQueues({ connection, prefix });
-  const deps = { prisma, queues, logger };
+  const deps = { prisma, queues, logger, storage };
   const workerOptions = { connection, prefix };
 
   const reminderProcessors = {

@@ -51,6 +51,25 @@ export const REMINDER_OPTIONS = [
   { minutes: 15, label: '15 min' },
 ];
 
+export const DOCUMENT_TYPES = {
+  RESUME: 'Resume',
+  COVER_LETTER: 'Cover letter',
+  OTHER: 'Other',
+};
+
+export const DOCUMENT_ACCEPT = {
+  'application/pdf': 'PDF',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
+};
+
+export const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024;
+
+export function formatBytes(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function formatOffset(minutes) {
   const option = REMINDER_OPTIONS.find((o) => o.minutes === minutes);
   if (option) return option.label;

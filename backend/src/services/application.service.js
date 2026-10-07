@@ -62,7 +62,12 @@ function toDetail(application) {
     notes: application.notes,
     allowedTransitions: allowedTransitions(application.status),
     resume: application.resume
-      ? { id: application.resume.id, label: application.resume.label, filename: application.resume.filename }
+      ? {
+          id: application.resume.id,
+          label: application.resume.label,
+          filename: application.resume.filename,
+          deleted: Boolean(application.resume.deletedAt),
+        }
       : null,
     timeline: application.events.map((event) => ({
       id: event.id,

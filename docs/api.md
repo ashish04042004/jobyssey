@@ -15,7 +15,7 @@ Base path: `/api`. JSON in, JSON out. All timestamps are ISO-8601 UTC.
 | Interviews / Agenda | 5 | Implemented |
 | Notifications  | 6     | Implemented |
 | Idempotency, Admin | 7 | Implemented |
-| Documents      | 8     | Planned     |
+| Documents      | 8     | Implemented |
 | Analytics      | 9     | Planned     |
 
 ---
@@ -354,22 +354,39 @@ that are still `SAVED` (not yet applied to), sorted by time:
 
 ## 8. Documents
 
-Direct-to-storage upload; the API never streams file bytes.
+Direct-to-storage upload; in production (Supabase Storage) the API never
+streams file bytes.
 
-1. `POST /api/documents/upload-url`
+1. `POST /api/documents/upload-url` — rate limit 20/hour
    `{ "label": "Resume — Backend", "type": "RESUME", "filename": "cv.pdf", "mimeType": "application/pdf", "sizeBytes": 183422 }`
-   → `201 { data: { document, uploadUrl, expiresAt } }` (document `PENDING`).
-2. Client `PUT`s the file to `uploadUrl`.
-3. `POST /api/documents/:id/complete` → verifies the object exists and its size,
-   marks `READY`.
+   → `201 { data: { document, uploadUrl, uploadMethod: "PUT", uploadHeaders, expiresAt } }`
+   (document `PENDING`, URL valid 15 min). `uploadUrl` is absolute for
+   Supabase and relative (`/api/storage/<token>`) for the local driver.
+2. Client sends the file to `uploadUrl` with `uploadMethod` and `uploadHeaders`.
+3. `POST /api/documents/:id/complete` → checks the object exists, records its
+   real size, marks `READY`. `409 UPLOAD_MISSING` if nothing was uploaded;
+   idempotent once `READY`.
 
 ```http
-GET    /api/documents
-GET    /api/documents/:id/download-url    → short-lived signed URL
-DELETE /api/documents/:id                 → soft delete (204)
+GET    /api/documents?type=RESUME          READY documents, newest first, with usedByApplications
+PATCH  /api/documents/:id                  { "label": "Resume — Backend v2", "type": "RESUME" }
+GET    /api/documents/:id/download-url     → { url, expiresAt } signed for 5 min, forces the original filename
+DELETE /api/documents/:id                  → soft delete (204); the stored file is removed
 ```
 
-Limits: PDF/DOCX only, ≤ 5 MB, ≤ 20 documents per user.
+Limits: PDF/DOCX only (extension must match `mimeType`), 1 B – 5 MB, ≤ 20
+documents per user (`409 DOCUMENT_LIMIT_REACHED`). Uploads that never complete
+are removed by the daily maintenance job after 24 h.
+
+Applications reference a document via `resumeId`
+(`PATCH /api/applications/:id { "resumeId": "…" | null }`; must be the user's
+own `READY` document). After the document is deleted, the application still
+shows it as `resume: { …, deleted: true }`.
+
+**Local storage driver** (dev/tests): `PUT /api/storage/:token` and
+`GET /api/storage/:token`, where the token is a short-lived signed JWT naming
+the object and operation. Uploads must match the declared `Content-Type`
+(`415`) and size (`413`); each upload URL works once (`409 ALREADY_UPLOADED`).
 
 ---
 

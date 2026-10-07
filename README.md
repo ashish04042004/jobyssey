@@ -14,8 +14,8 @@ applications, manage deadlines and interviews, and never miss a placement event.
 | ![Applications](docs/screenshots/applications.png) | ![Application detail](docs/screenshots/application-detail.png) |
 | **Interviews & OAs** | **Notifications** |
 | ![Interviews & OAs](docs/screenshots/interviews.png) | ![Notifications](docs/screenshots/notifications.png) |
-| **System (admin)** | |
-| ![System](docs/screenshots/admin-system.png) | |
+| **Documents** | **System (admin)** |
+| ![Documents](docs/screenshots/documents.png) | ![System](docs/screenshots/admin-system.png) |
 
 ---
 
@@ -31,8 +31,8 @@ applications, manage deadlines and interviews, and never miss a placement event.
 | 5     | Interviews & OAs: rounds, meeting links, reminder schedule, agenda | ✅ Done |
 | 6     | Workers: outbox relay, BullMQ reminders, notifications, job matching, stale nudges | ✅ Done |
 | 7     | Reliability: idempotency keys, client retries, failed-job admin, data retention | ✅ Done |
-| 8     | Documents: resume versions on Supabase Storage | ⏭ Next |
-| 9     | Analytics                               | Planned      |
+| 8     | Documents: direct-to-storage uploads, resume versions, resume per application | ✅ Done |
+| 9     | Analytics: funnel, conversion, monthly activity | ⏭ Next |
 | 10    | Testing & load testing                  | Planned      |
 
 Design docs:
@@ -57,6 +57,7 @@ backend/              Express API + background worker (one image, two entrypoint
     queues/           BullMQ queue definitions
     routes/           HTTP wiring
     services/         business logic
+    storage/          document storage drivers (Supabase Storage, local disk)
     workers/          outbox relay, event handlers, reminders, job matching, sweeps, pruning
     server.js         API entrypoint
     worker.js         worker entrypoint

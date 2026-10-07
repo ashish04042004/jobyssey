@@ -74,6 +74,7 @@ models/        Prisma client + repository helpers
 queues/        queue definitions and producers
 workers/       job processors
 middleware/    auth, rbac, rate limit, idempotency, request id, errors
+storage/       object storage drivers (Supabase Storage, local disk)
 config/        env parsing (fail fast on bad config)
 ```
 
@@ -303,10 +304,34 @@ defence, and the SPA reuses one key across its automatic retries.
   heartbeat and reminder delivery rate; the admin **System** page shows them
   and lists failed jobs with a one-click retry (safe: consumers are idempotent).
 
+### Documents and object storage
+Files never touch Postgres; `documents` holds metadata and a server-generated
+`storage_key` (`users/<userId>/<uuid>.<ext>`). Uploads are two-phase:
+
+1. `upload-url` validates type/size/quota, inserts a `PENDING` row and returns
+   a signed upload URL (15 min).
+2. The browser uploads straight to storage (progress via XHR).
+3. `complete` asks storage whether the object exists, records its real size
+   and flips the row to `READY`. Only `READY` documents are listed or can be
+   attached to applications.
+
+`STORAGE_DRIVER` picks the implementation behind one small interface
+(`createUploadUrl`, `stat`, `createDownloadUrl`, `remove`):
+
+- **supabase** — private bucket over the Storage REST API with the
+  service-role key; signed upload/download URLs are served by Supabase.
+- **local** — disk under `STORAGE_LOCAL_DIR`, used in Docker and tests. Its
+  "signed URLs" are `/api/storage/<jwt>` routes that enforce the declared
+  content type and size and are write-once, so the flow is identical.
+
+Deleting a document is a soft delete (applications keep showing which resume
+was used) plus removal of the stored object. Abandoned `PENDING` uploads are
+pruned after 24 h.
+
 ### Data retention
 A `maintenance.prune` repeatable job (daily) deletes expired idempotency keys,
-outbox rows published more than 7 days ago, and refresh tokens that expired
-more than 7 days ago. Audit logs, application events and notifications are kept.
+outbox rows published more than 7 days ago, refresh tokens that expired
+more than 7 days ago, and document uploads left `PENDING` for over a day. Audit logs, application events and notifications are kept.
 
 ### Caching (Redis, cache-aside)
 | Data                    | Key                                    | TTL   | Invalidation               |

@@ -167,6 +167,14 @@ export const api = {
     markAllRead: () => apiRequest('/notifications/read-all', { method: 'PATCH' }),
   },
 
+  documents: {
+    list: (params = {}, signal) => apiRequest(`/documents${toQuery(params)}`, { signal }),
+    update: (id, body) => apiRequest(`/documents/${id}`, { method: 'PATCH', body }),
+    remove: (id) => apiRequest(`/documents/${id}`, { method: 'DELETE' }),
+    downloadUrl: (id) => apiRequest(`/documents/${id}/download-url`),
+    upload: uploadDocument,
+  },
+
   admin: {
     metrics: (signal) => apiRequest('/admin/metrics', { signal }),
     failedJobs: (queue, signal) => apiRequest(`/admin/queues/${queue}/failed`, { signal }),
@@ -174,6 +182,43 @@ export const api = {
       apiRequest(`/admin/queues/${queue}/jobs/${encodeURIComponent(jobId)}/retry`, { method: 'POST' }),
   },
 };
+
+/** Resolves storage URLs: Supabase hands out absolute ones, the local driver relative ones. */
+export const storageUrl = (url) => (/^https?:\/\//.test(url) ? url : `${BASE_URL}${url}`);
+
+function putWithProgress(url, { method, headers }, file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, storageUrl(url));
+    Object.entries(headers ?? {}).forEach(([name, value]) => xhr.setRequestHeader(name, value));
+    xhr.upload.onprogress = (event) => event.lengthComputable && onProgress?.(event.loaded / event.total);
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) return resolve();
+      let body = null;
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        // storage providers do not always answer with JSON
+      }
+      reject(new ApiError(xhr.status, body));
+    };
+    xhr.onerror = () => reject(new TypeError('Upload failed: network error'));
+    xhr.send(file);
+  });
+}
+
+/**
+ * Direct-to-storage upload: ask the API for a signed URL, PUT the file there,
+ * then let the API verify it landed.
+ */
+async function uploadDocument(file, { label, type }, onProgress) {
+  const { data } = await apiRequest('/documents/upload-url', {
+    method: 'POST',
+    body: { label, type, filename: file.name, mimeType: file.type, sizeBytes: file.size },
+  });
+  await putWithProgress(data.uploadUrl, { method: data.uploadMethod, headers: data.uploadHeaders }, file, onProgress);
+  return apiRequest(`/documents/${data.document.id}/complete`, { method: 'POST' });
+}
 
 function toQuery(params) {
   const entries = Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '');

@@ -172,11 +172,11 @@ describe('pruneStorage', () => {
       ],
     });
 
-    expect(await pruneStorage({ prisma }, now)).toEqual({ idempotencyKeys: 1, outboxEvents: 1, refreshTokens: 1 });
+    expect(await pruneStorage({ prisma }, now)).toEqual({ idempotencyKeys: 1, outboxEvents: 1, refreshTokens: 1, abandonedUploads: 0 });
     expect((await prisma.outboxEvent.findMany()).map((e) => e.type).sort()).toEqual(['b', 'c']);
     expect(await prisma.idempotencyKey.count()).toBe(1);
     expect(await prisma.refreshToken.count()).toBe(1);
-    expect(await pruneStorage({ prisma }, now)).toEqual({ idempotencyKeys: 0, outboxEvents: 0, refreshTokens: 0 });
+    expect(await pruneStorage({ prisma }, now)).toEqual({ idempotencyKeys: 0, outboxEvents: 0, refreshTokens: 0, abandonedUploads: 0 });
   });
 });
 

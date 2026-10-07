@@ -4,6 +4,7 @@ import { rateLimit } from '../middleware/rateLimit.js';
 import { createAdminService } from '../services/admin.service.js';
 import { createApplicationService } from '../services/application.service.js';
 import { createCache } from '../services/cache.service.js';
+import { createDocumentService } from '../services/document.service.js';
 import { createInterviewService } from '../services/interview.service.js';
 import { createJobService } from '../services/job.service.js';
 import { createNotificationService } from '../services/notification.service.js';
@@ -11,11 +12,13 @@ import { adminRoutes } from './admin.routes.js';
 import { applicationRoutes } from './application.routes.js';
 import { authRoutes } from './auth.routes.js';
 import { companyRoutes } from './company.routes.js';
+import { documentRoutes } from './document.routes.js';
 import { healthRoutes } from './health.routes.js';
 import { agendaRoutes, interviewRoutes } from './interview.routes.js';
 import { jobRoutes } from './job.routes.js';
 import { meRoutes } from './me.routes.js';
 import { notificationRoutes } from './notification.routes.js';
+import { storageRoutes } from './storage.routes.js';
 
 export function apiRoutes(deps) {
   const cache = createCache({ redis: deps.redis, logger: deps.logger });
@@ -23,8 +26,9 @@ export function apiRoutes(deps) {
   const applicationService = createApplicationService({ prisma: deps.prisma, jobService });
   const interviewService = createInterviewService({ prisma: deps.prisma });
   const notificationService = createNotificationService({ prisma: deps.prisma });
+  const documentService = createDocumentService({ prisma: deps.prisma, storage: deps.storage, logger: deps.logger });
   const adminService = createAdminService({ prisma: deps.prisma, redis: deps.redis, queues: deps.queues });
-  const services = { ...deps, jobService, applicationService, interviewService, notificationService, adminService };
+  const services = { ...deps, jobService, applicationService, interviewService, notificationService, documentService, adminService };
 
   const router = Router();
   const protectedRoute = [
@@ -34,6 +38,7 @@ export function apiRoutes(deps) {
 
   router.use('/health', healthRoutes(deps));
   router.use('/auth', authRoutes(deps));
+  if (deps.storage?.name === 'local') router.use('/storage', storageRoutes(deps));
   router.use('/me', ...protectedRoute, meRoutes(deps));
   router.use('/jobs', ...protectedRoute, jobRoutes(services));
   router.use('/companies', ...protectedRoute, companyRoutes(deps));
@@ -41,6 +46,7 @@ export function apiRoutes(deps) {
   router.use('/interviews', ...protectedRoute, interviewRoutes(services));
   router.use('/agenda', ...protectedRoute, agendaRoutes(services));
   router.use('/notifications', ...protectedRoute, notificationRoutes(services));
+  router.use('/documents', ...protectedRoute, documentRoutes(services));
   router.use('/admin', ...protectedRoute, adminRoutes(services));
 
   return router;

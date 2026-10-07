@@ -24,6 +24,13 @@ const schema = z.object({
   COOKIE_SAMESITE: z.enum(['lax', 'strict', 'none']).default('lax'),
   COOKIE_SECURE: z.enum(['true', 'false']).optional(),
   RUN_WORKER_IN_API: booleanString,
+  // `local` keeps files on disk behind signed API URLs (dev/tests);
+  // `supabase` uploads straight to a private Supabase Storage bucket.
+  STORAGE_DRIVER: z.enum(['local', 'supabase']).default('local'),
+  STORAGE_LOCAL_DIR: z.string().default('./storage'),
+  SUPABASE_URL: z.url().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(20).optional(),
+  SUPABASE_BUCKET: z.string().default('documents'),
 });
 
 function loadEnv() {
@@ -38,6 +45,9 @@ function loadEnv() {
   const cookieSecure = data.COOKIE_SECURE ? data.COOKIE_SECURE === 'true' : data.NODE_ENV === 'production';
   if (data.COOKIE_SAMESITE === 'none' && !cookieSecure) {
     throw new Error('Invalid environment configuration:\n  - COOKIE_SAMESITE=none requires COOKIE_SECURE=true');
+  }
+  if (data.STORAGE_DRIVER === 'supabase' && !(data.SUPABASE_URL && data.SUPABASE_SERVICE_ROLE_KEY)) {
+    throw new Error('Invalid environment configuration:\n  - STORAGE_DRIVER=supabase requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
   }
   return Object.freeze({ ...data, COOKIE_SECURE: cookieSecure });
 }
