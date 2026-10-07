@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router';
 import { PublicOnly, RequireAuth } from './auth/guards.jsx';
 import AppLayout from './components/AppLayout.jsx';
+import Admin from './pages/Admin.jsx';
 import ApplicationDetail from './pages/ApplicationDetail.jsx';
 import Applications from './pages/Applications.jsx';
 import RouteError from './components/RouteError.jsx';
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
           { path: 'applications/:id', element: <ApplicationDetail /> },
           { path: 'interviews', element: <Interviews /> },
           { path: 'notifications', element: <Notifications /> },
+          { path: 'admin', element: <Admin /> },
           ...MODULES.filter((m) => !m.ready).map((module) => ({
             path: module.path.slice(1),
             element: <ComingSoon module={module} />,

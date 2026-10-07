@@ -3,6 +3,7 @@ import { bullConnection, createQueues, QUEUE_NAMES } from '../queues/index.js';
 import { handleEvent } from './eventHandlers.js';
 import { startHeartbeat } from './heartbeat.js';
 import { matchJob } from './jobMatching.js';
+import { pruneStorage } from './maintenance.js';
 import { startOutboxRelay } from './outboxRelay.js';
 import { fireReminder, markReminderFailed, sweepReminders } from './reminders.js';
 import { sweepStaleApplications } from './staleApplications.js';
@@ -10,6 +11,7 @@ import { sweepStaleApplications } from './staleApplications.js';
 const SCHEDULES = [
   { id: 'reminder-sweep', every: 5 * 60_000, name: 'reminder.sweep' },
   { id: 'stale-application-sweep', every: 6 * 60 * 60_000, name: 'application.stale-sweep' },
+  { id: 'maintenance-prune', every: 24 * 60 * 60_000, name: 'maintenance.prune' },
 ];
 
 /**
@@ -28,6 +30,7 @@ export async function startWorkerRuntime({ prisma, redis, logger, redisUrl, pref
     'reminder.fire': (job) => fireReminder(deps, job.data.reminderId),
     'reminder.sweep': () => sweepReminders(deps),
     'application.stale-sweep': () => sweepStaleApplications(deps),
+    'maintenance.prune': () => pruneStorage(deps),
   };
 
   const workers = [

@@ -14,6 +14,8 @@ applications, manage deadlines and interviews, and never miss a placement event.
 | ![Applications](docs/screenshots/applications.png) | ![Application detail](docs/screenshots/application-detail.png) |
 | **Interviews & OAs** | **Notifications** |
 | ![Interviews & OAs](docs/screenshots/interviews.png) | ![Notifications](docs/screenshots/notifications.png) |
+| **System (admin)** | |
+| ![System](docs/screenshots/admin-system.png) | |
 
 ---
 
@@ -28,8 +30,9 @@ applications, manage deadlines and interviews, and never miss a placement event.
 | 4     | Applications: tracker, status transitions, timeline, notes, prep checklist | ✅ Done |
 | 5     | Interviews & OAs: rounds, meeting links, reminder schedule, agenda | ✅ Done |
 | 6     | Workers: outbox relay, BullMQ reminders, notifications, job matching, stale nudges | ✅ Done |
-| 7     | Reliability: idempotency keys, retries, failed jobs | ⏭ Next |
-| 8–9   | Documents, analytics                    | Planned      |
+| 7     | Reliability: idempotency keys, client retries, failed-job admin, data retention | ✅ Done |
+| 8     | Documents: resume versions on Supabase Storage | ⏭ Next |
+| 9     | Analytics                               | Planned      |
 | 10    | Testing & load testing                  | Planned      |
 
 Design docs:
@@ -49,12 +52,12 @@ backend/              Express API + background worker (one image, two entrypoint
     config/           env validation (zod), logger, redis
     controllers/      request → service → response
     domain/           pure business rules (state machine, job match scoring)
-    middleware/       request id, errors, auth, rate limits (idempotency next)
+    middleware/       request id, errors, auth, rate limits, idempotency keys
     models/           Prisma client
-    queues/           BullMQ queue definitions (only the worker enqueues)
+    queues/           BullMQ queue definitions
     routes/           HTTP wiring
     services/         business logic
-    workers/          outbox relay, event handlers, reminders, job matching, sweeps
+    workers/          outbox relay, event handlers, reminders, job matching, sweeps, pruning
     server.js         API entrypoint
     worker.js         worker entrypoint
   tests/              Jest + Supertest

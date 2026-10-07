@@ -46,4 +46,15 @@ export const MODULES = [
     phase: 6,
     summary: 'Deadline and interview reminders, new matching opportunities, and nudges for stale applications.',
   },
+  {
+    path: '/admin',
+    label: 'System',
+    icon: 'pulse',
+    ready: true,
+    roles: ['ADMIN'],
+    phase: 7,
+    summary: 'Usage, background-job health, outbox lag and failed jobs.',
+  },
 ];
+
+export const modulesFor = (user) => MODULES.filter((m) => !m.roles || m.roles.includes(user?.role));

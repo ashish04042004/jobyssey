@@ -88,6 +88,30 @@ export async function apiRequest(path, options = {}) {
   return send(path, options);
 }
 
+const RETRY_DELAYS_MS = [400, 1500];
+
+function isRetryable(err) {
+  if (err?.name === 'AbortError') return false;
+  if (!(err instanceof ApiError)) return err instanceof TypeError; // fetch network failure
+  return [502, 503, 504].includes(err.status) || err.code === 'IDEMPOTENCY_IN_PROGRESS';
+}
+
+/**
+ * One user intent = one Idempotency-Key. Transient failures are retried with
+ * the same key, so the server applies the write at most once.
+ */
+export async function idempotentRequest(path, options = {}) {
+  const headers = { ...options.headers, 'Idempotency-Key': crypto.randomUUID() };
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await apiRequest(path, { ...options, headers });
+    } catch (err) {
+      if (attempt >= RETRY_DELAYS_MS.length || !isRetryable(err)) throw err;
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
+    }
+  }
+}
+
 export const api = {
   health: (signal) => send('/health/ready', { signal }),
 
@@ -101,10 +125,10 @@ export const api = {
   jobs: {
     list: (params = {}, signal) => apiRequest(`/jobs${toQuery(params)}`, { signal }),
     get: (id, signal) => apiRequest(`/jobs/${id}`, { signal }),
-    create: (body) => apiRequest('/jobs', { method: 'POST', body }),
+    create: (body) => idempotentRequest('/jobs', { method: 'POST', body }),
     update: (id, body) => apiRequest(`/jobs/${id}`, { method: 'PATCH', body }),
     archive: (id) => apiRequest(`/jobs/${id}`, { method: 'DELETE' }),
-    save: (id) => apiRequest(`/jobs/${id}/save`, { method: 'POST' }),
+    save: (id) => idempotentRequest(`/jobs/${id}/save`, { method: 'POST' }),
   },
 
   companies: {
@@ -114,12 +138,12 @@ export const api = {
   applications: {
     list: (params = {}, signal) => apiRequest(`/applications${toQuery(params)}`, { signal }),
     get: (id, signal) => apiRequest(`/applications/${id}`, { signal }),
-    create: (body) => apiRequest('/applications', { method: 'POST', body }),
+    create: (body) => idempotentRequest('/applications', { method: 'POST', body }),
     update: (id, body) => apiRequest(`/applications/${id}`, { method: 'PATCH', body }),
-    changeStatus: (id, body) => apiRequest(`/applications/${id}/status`, { method: 'PATCH', body }),
+    changeStatus: (id, body) => idempotentRequest(`/applications/${id}/status`, { method: 'PATCH', body }),
     remove: (id) => apiRequest(`/applications/${id}`, { method: 'DELETE' }),
     prep: {
-      add: (id, topic) => apiRequest(`/applications/${id}/prep`, { method: 'POST', body: { topic } }),
+      add: (id, topic) => idempotentRequest(`/applications/${id}/prep`, { method: 'POST', body: { topic } }),
       update: (id, itemId, body) => apiRequest(`/applications/${id}/prep/${itemId}`, { method: 'PATCH', body }),
       remove: (id, itemId) => apiRequest(`/applications/${id}/prep/${itemId}`, { method: 'DELETE' }),
     },
@@ -128,7 +152,8 @@ export const api = {
   interviews: {
     list: (params = {}, signal) => apiRequest(`/interviews${toQuery(params)}`, { signal }),
     get: (id, signal) => apiRequest(`/interviews/${id}`, { signal }),
-    schedule: (applicationId, body) => apiRequest(`/applications/${applicationId}/interviews`, { method: 'POST', body }),
+    schedule: (applicationId, body) =>
+      idempotentRequest(`/applications/${applicationId}/interviews`, { method: 'POST', body }),
     update: (id, body) => apiRequest(`/interviews/${id}`, { method: 'PATCH', body }),
     remove: (id) => apiRequest(`/interviews/${id}`, { method: 'DELETE' }),
   },
@@ -140,6 +165,13 @@ export const api = {
     unreadCount: (signal) => apiRequest('/notifications/unread-count', { signal }),
     markRead: (id) => apiRequest(`/notifications/${id}/read`, { method: 'PATCH' }),
     markAllRead: () => apiRequest('/notifications/read-all', { method: 'PATCH' }),
+  },
+
+  admin: {
+    metrics: (signal) => apiRequest('/admin/metrics', { signal }),
+    failedJobs: (queue, signal) => apiRequest(`/admin/queues/${queue}/failed`, { signal }),
+    retryJob: (queue, jobId) =>
+      apiRequest(`/admin/queues/${queue}/jobs/${encodeURIComponent(jobId)}/retry`, { method: 'POST' }),
   },
 };
 

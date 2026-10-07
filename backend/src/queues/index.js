@@ -17,8 +17,9 @@ export const DEFAULT_JOB_OPTIONS = Object.freeze({
 export const bullConnection = (url) => ({ url, maxRetriesPerRequest: null });
 
 /**
- * Queue producers. Only the worker runtime enqueues: the API writes outbox rows
- * and the relay publishes them, so a Redis outage never fails a user request.
+ * Queue producers. User requests never enqueue: the API writes outbox rows and
+ * the worker's relay publishes them, so a Redis outage never fails a user
+ * request. The API holds queue handles only for the admin view.
  */
 export function createQueues({ connection, prefix = 'jobyssey' }) {
   const make = (name) => new Queue(name, { connection, prefix, defaultJobOptions: DEFAULT_JOB_OPTIONS });

@@ -232,6 +232,8 @@ delivery mechanism.
 - **Stale applications:** every 6 hours, applications in `APPLIED`, `OA`,
   `OA_COMPLETED` or `INTERVIEW` with no status change for 14 days get one nudge
   per status (`dedupe_key = stale:<id>:<statusChangedAtMs>`).
+- **Maintenance:** daily prune of short-lived bookkeeping rows (see
+  [Data retention](#data-retention)).
 
 ---
 
@@ -275,9 +277,36 @@ If Redis is unreachable, limiters **fail open** (log + allow), except login,
 which fails closed.
 
 ### Idempotency
-Critical `POST`s accept an `Idempotency-Key` header. See `api.md` §2.4 and the
-`idempotency_keys` table in `schema.md`. The DB also enforces
-`UNIQUE (user_id, job_id)` on applications as the last line of defence.
+Critical writes accept an `Idempotency-Key` header (`api.md` §2.4,
+`idempotency_keys` in `schema.md`). The middleware runs after auth and rate
+limiting:
+
+1. `INSERT` an `IN_PROGRESS` row for `(user_id, key)` with the SHA-256 of
+   method + path + canonical (key-sorted) JSON body. The unique constraint is
+   the lock: of N concurrent duplicates exactly one wins the insert.
+2. Losers read the row: different hash → `422`; `COMPLETED` → replay the
+   stored status + body; `IN_PROGRESS` and fresh → `409`; `IN_PROGRESS` and
+   older than 30 s → compare-and-set `locked_at` to take over a crashed claim.
+3. The winner's `res.json` is wrapped: responses below 500 are written to the
+   row *before* the response is sent (so a retry that races the reply still
+   sees `COMPLETED`); 5xx or a dropped connection deletes the row.
+
+Keys expire after 24 h and are deleted by the daily maintenance job. The DB
+also enforces `UNIQUE (user_id, job_id)` on applications as the last line of
+defence, and the SPA reuses one key across its automatic retries.
+
+### Failure visibility
+- BullMQ keeps the last 5000 failed jobs per queue (5 attempts, exponential
+  backoff from 2 s). Final reminder failures also mark the `reminders` row
+  `FAILED` with `last_error`.
+- `GET /api/admin/metrics` reports outbox lag, queue depth per state, worker
+  heartbeat and reminder delivery rate; the admin **System** page shows them
+  and lists failed jobs with a one-click retry (safe: consumers are idempotent).
+
+### Data retention
+A `maintenance.prune` repeatable job (daily) deletes expired idempotency keys,
+outbox rows published more than 7 days ago, and refresh tokens that expired
+more than 7 days ago. Audit logs, application events and notifications are kept.
 
 ### Caching (Redis, cache-aside)
 | Data                    | Key                                    | TTL   | Invalidation               |

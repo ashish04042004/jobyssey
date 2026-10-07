@@ -7,13 +7,14 @@ import { prisma } from '../../src/models/prisma.js';
 
 export { prisma };
 
-export function createTestContext() {
+export function createTestContext({ queues } = {}) {
   const redis = createRedis('test');
   const app = createApp({
     logger: pino({ level: 'silent' }),
     corsOrigins: ['http://localhost:5173'],
     prisma,
     redis,
+    queues,
     healthService: { readiness: async () => ({ status: 'ok', checks: {} }) },
   });
 
@@ -48,12 +49,12 @@ export async function createUser(email, role = 'STUDENT', profile = {}) {
   return { ...user, auth: `Bearer ${await signAccessToken(user)}` };
 }
 
-/** Supertest shortcuts that send the user's access token. */
+/** Supertest shortcuts that send the user's access token (and optional extra headers). */
 export function apiAs(app, user) {
   return {
     get: (path) => request(app).get(`/api${path}`).set('Authorization', user.auth),
-    post: (path, body) => request(app).post(`/api${path}`).set('Authorization', user.auth).send(body),
-    patch: (path, body) => request(app).patch(`/api${path}`).set('Authorization', user.auth).send(body),
+    post: (path, body, headers = {}) => request(app).post(`/api${path}`).set('Authorization', user.auth).set(headers).send(body),
+    patch: (path, body, headers = {}) => request(app).patch(`/api${path}`).set('Authorization', user.auth).set(headers).send(body),
     delete: (path) => request(app).delete(`/api${path}`).set('Authorization', user.auth),
   };
 }

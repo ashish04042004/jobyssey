@@ -10,10 +10,11 @@ Base path: `/api`. JSON in, JSON out. All timestamps are ISO-8601 UTC.
 |----------------|-------|-------------|
 | Health         | 1     | Implemented |
 | Auth / Me      | 2     | Implemented |
-| Jobs           | 3     | Implemented (Idempotency-Key support lands in phase 7) |
-| Applications   | 4     | Implemented (Idempotency-Key support lands in phase 7) |
+| Jobs           | 3     | Implemented |
+| Applications   | 4     | Implemented |
 | Interviews / Agenda | 5 | Implemented |
 | Notifications  | 6     | Implemented |
+| Idempotency, Admin | 7 | Implemented |
 | Documents      | 8     | Planned     |
 | Analytics      | 9     | Planned     |
 
@@ -66,16 +67,26 @@ on the last page. `limit` max 100.
 
 ### 2.4 Idempotency
 
-Endpoints marked **[idem]** accept `Idempotency-Key: <uuid>`.
+Endpoints marked **[idem]** accept `Idempotency-Key: <uuid>` (8–200 chars of
+`A–Z a–z 0–9 - _ . :`; anything else is a `400`). The header is optional; keys
+are scoped per user.
 
-- First request: processed normally; response stored for 24 h.
-- Repeat with same key + same body: stored response replayed, header
-  `Idempotent-Replayed: true`.
+- First request: processed normally; any response below 500 is stored for 24 h
+  (including 4xx — the same request gets the same answer).
+- Repeat with same key + same method, path and body: stored response replayed
+  with header `Idempotent-Replayed: true`. Body key order does not matter.
 - Repeat while the first is still running: `409 IDEMPOTENCY_IN_PROGRESS`.
-- Same key, different body: `422 IDEMPOTENCY_KEY_REUSED`.
+  A claim older than 30 s is treated as a crashed request and taken over.
+- Same key, different request: `422 IDEMPOTENCY_KEY_REUSED`.
+- A 5xx (or a dropped connection) releases the key so the client can retry.
+
+[idem] endpoints: `POST /jobs`, `POST /jobs/:id/save`, `POST /applications`,
+`PATCH /applications/:id/status`, `POST /applications/:id/prep`,
+`POST /applications/:id/interviews`.
 
 The frontend generates one key per user *intent* (e.g. per click on "Track
-application"), not per HTTP attempt, so retries reuse it.
+application"), not per HTTP attempt: network errors, 502/503/504 and
+`IDEMPOTENCY_IN_PROGRESS` are retried twice (0.4 s, 1.5 s) with the same key.
 
 ### 2.5 Auth
 
@@ -259,7 +270,7 @@ valid buttons.
 ### `PATCH /api/applications/:id`
 Non-status fields: `notes`, `resumeId`.
 
-### `PATCH /api/applications/:id/status`
+### `PATCH /api/applications/:id/status` **[idem]**
 ```json
 { "status": "OA", "note": "Got HackerRank link", "occurredAt": "2026-10-04T09:00:00Z",
   "expectedVersion": 3 }
@@ -278,7 +289,7 @@ Soft delete. → `204`.
 ### Prep items
 ```http
 GET    /api/applications/:id/prep
-POST   /api/applications/:id/prep            { "topic": "Graphs" }
+POST   /api/applications/:id/prep            { "topic": "Graphs" }        [idem]
 PATCH  /api/applications/:id/prep/:itemId    { "isDone": true }
 DELETE /api/applications/:id/prep/:itemId
 ```
@@ -417,8 +428,37 @@ Query: `from`, `to`. Funnel and per-company conversion computed from
 
 ## 11. Admin (minimal)
 
-```http
-GET  /api/admin/metrics     registered users, WAU, applications created/updated,
-                            reminders delivered, notification success rate, queue lag
+`ADMIN` role only (`403 FORBIDDEN` otherwise).
+
+### `GET /api/admin/metrics`
+Usage over the last 7 days plus the health of the async pipeline:
+```json
+{
+  "data": {
+    "generatedAt": "…",
+    "users": { "total": 120, "newLast7Days": 14, "activeLast7Days": 63 },
+    "applications": { "total": 1840, "createdLast7Days": 212, "updatedLast7Days": 530 },
+    "reminders": {
+      "byStatus": { "PENDING": 3, "QUEUED": 410, "SENT": 2200, "CANCELLED": 380, "FAILED": 2 },
+      "sentLast7Days": 312, "failedLast7Days": 1, "deliveryRate": 0.997
+    },
+    "notifications": { "createdLast7Days": 540 },
+    "outbox": { "pending": 0, "retrying": 0, "lagSeconds": 0 },
+    "queues": [{ "name": "reminders", "counts": { "waiting": 0, "active": 0, "delayed": 410, "failed": 1, "completed": 900, "paused": 0 } }],
+    "worker": { "status": "ok", "lastHeartbeatAt": "…", "workerId": "…" }
+  }
+}
 ```
-`ADMIN` role only.
+"Active" = issued a refresh token (login or silent refresh) in the window.
+`queues` is `null` if Redis is unreachable; `worker.status` is `down` when no
+heartbeat arrived in the last 45 s.
+
+### `GET /api/admin/queues/:queue/failed?limit=20`
+Most recent failed jobs of `domain-events`, `reminders` or `job-matching`
+(BullMQ keeps the last 5000): `id`, `name`, `failedReason`, `attemptsMade`,
+`maxAttempts`, `createdAt`, `failedAt`, `data`. Unknown queue → `404`.
+
+### `POST /api/admin/queues/:queue/jobs/:jobId/retry`
+Moves a failed job back to `waiting`. `404` if the job is gone,
+`409 JOB_NOT_FAILED` if it is not in the failed state. Safe because every
+consumer is idempotent.

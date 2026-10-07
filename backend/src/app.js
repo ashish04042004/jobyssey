@@ -11,7 +11,7 @@ import { apiRoutes } from './routes/index.js';
  * Builds the Express app. Dependencies are injected so tests can supply fakes
  * instead of real Postgres/Redis connections.
  */
-export function createApp({ logger, corsOrigins, prisma, redis, healthService, version = '0.0.0' }) {
+export function createApp({ logger, corsOrigins, prisma, redis, queues, healthService, version = '0.0.0' }) {
   const app = express();
 
   app.disable('x-powered-by');
@@ -37,7 +37,7 @@ export function createApp({ logger, corsOrigins, prisma, redis, healthService, v
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
 
-  app.use('/api', apiRoutes({ logger, prisma, redis, corsOrigins, healthService, version }));
+  app.use('/api', apiRoutes({ logger, prisma, redis, queues, corsOrigins, healthService, version }));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

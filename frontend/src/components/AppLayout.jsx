@@ -4,13 +4,14 @@ import { useAuth } from '../auth/AuthContext.js';
 import { useUnreadCount } from '../hooks/useUnreadCount.js';
 import Icon from './Icon.jsx';
 import Logo from './Logo.jsx';
-import { MODULES } from '../modules.js';
+import { modulesFor } from '../modules.js';
 
 function NavItems({ onNavigate }) {
+  const { user } = useAuth();
   const unread = useUnreadCount();
   return (
     <nav className="flex flex-col gap-1">
-      {MODULES.map((module) => (
+      {modulesFor(user).map((module) => (
         <NavLink
           key={module.path}
           to={module.path}
