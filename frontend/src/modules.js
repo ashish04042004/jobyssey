@@ -1,0 +1,44 @@
+export const MODULES = [
+  {
+    path: '/',
+    label: 'Dashboard',
+    icon: 'home',
+    phase: 9,
+    summary: 'What you need to do today: upcoming OAs, interviews and deadlines, plus your pipeline at a glance.',
+  },
+  {
+    path: '/jobs',
+    label: 'Opportunities',
+    icon: 'briefcase',
+    phase: 3,
+    summary: 'Browse openings ranked by how well they match your roles, locations, graduation year and CTC expectations.',
+  },
+  {
+    path: '/applications',
+    label: 'Applications',
+    icon: 'kanban',
+    phase: 4,
+    summary: 'Track every application from Saved to Offer with a full timeline, notes and the resume you used.',
+  },
+  {
+    path: '/interviews',
+    label: 'Interviews & OAs',
+    icon: 'calendar',
+    phase: 5,
+    summary: 'Schedule OAs and interview rounds with meeting links and automatic reminders.',
+  },
+  {
+    path: '/documents',
+    label: 'Documents',
+    icon: 'file',
+    phase: 8,
+    summary: 'Keep tailored resume versions and cover letters, and attach the right one to each application.',
+  },
+  {
+    path: '/notifications',
+    label: 'Notifications',
+    icon: 'bell',
+    phase: 6,
+    summary: 'Deadline and interview reminders, new matching opportunities, and nudges for stale applications.',
+  },
+];

@@ -1,0 +1,409 @@
+// Jobyssey — V1 schema. Design rationale lives in docs/schema.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum UserRole {
+  STUDENT
+  ADMIN
+}
+
+enum JobVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum EmploymentType {
+  FULL_TIME
+  INTERNSHIP
+  INTERNSHIP_PPO
+}
+
+enum ApplicationStatus {
+  SAVED
+  APPLIED
+  OA
+  OA_COMPLETED
+  INTERVIEW
+  OFFER
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum InterviewType {
+  OA
+  TECHNICAL
+  HR
+  MANAGERIAL
+  GROUP_DISCUSSION
+  OTHER
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum ReminderStatus {
+  PENDING
+  QUEUED
+  SENT
+  CANCELLED
+  FAILED
+}
+
+enum DocumentType {
+  RESUME
+  COVER_LETTER
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING
+  READY
+}
+
+enum NotificationType {
+  DEADLINE
+  INTERVIEW
+  JOB_MATCH
+  STALE_APPLICATION
+  SYSTEM
+}
+
+enum IdempotencyStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+// ───────────────────────────── Tenancy ─────────────────────────────
+
+model Organization {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  users User[]
+  jobs  Job[]
+
+  @@map("organizations")
+}
+
+// ───────────────────────────── Users & auth ─────────────────────────────
+
+model User {
+  id                 String   @id @default(uuid()) @db.Uuid
+  organizationId     String?  @map("organization_id") @db.Uuid
+  email              String   @unique
+  passwordHash       String   @map("password_hash")
+  role               UserRole @default(STUDENT)
+  name               String
+  college            String
+  degree             String?
+  branch             String
+  graduationYear     Int      @map("graduation_year")
+  preferredRoles     String[] @default([]) @map("preferred_roles")
+  preferredLocations String[] @default([]) @map("preferred_locations")
+  minCtcLpa          Decimal? @map("min_ctc_lpa") @db.Decimal(6, 2)
+  skills             String[] @default([])
+  lastLoginAt        DateTime? @map("last_login_at") @db.Timestamptz(3)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization       Organization?        @relation(fields: [organizationId], references: [id])
+  refreshTokens      RefreshToken[]
+  createdJobs        Job[]                @relation("JobCreatedBy")
+  applications       Application[]
+  applicationEvents  ApplicationEvent[]
+  interviews         Interview[]
+  reminders          Reminder[]
+  documents          Document[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  idempotencyKeys    IdempotencyKey[]
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  tokenHash    String    @unique @map("token_hash")
+  familyId     String    @map("family_id") @db.Uuid
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(3)
+  replacedById String?   @map("replaced_by_id") @db.Uuid
+  userAgent    String?   @map("user_agent")
+  ip           String?
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+// ───────────────────────────── Jobs ─────────────────────────────
+
+model Company {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String   @unique
+  website     String?
+  logoUrl     String?  @map("logo_url")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  jobs Job[]
+
+  @@map("companies")
+}
+
+model Job {
+  id                  String         @id @default(uuid()) @db.Uuid
+  companyId           String         @map("company_id") @db.Uuid
+  organizationId      String?        @map("organization_id") @db.Uuid
+  createdById         String?        @map("created_by_id") @db.Uuid
+  visibility          JobVisibility  @default(PUBLIC)
+  title               String
+  roleCategory        String?        @map("role_category")
+  employmentType      EmploymentType @default(FULL_TIME) @map("employment_type")
+  locations           String[]       @default([])
+  isRemote            Boolean        @default(false) @map("is_remote")
+  ctcMinLpa           Decimal?       @map("ctc_min_lpa") @db.Decimal(6, 2)
+  ctcMaxLpa           Decimal?       @map("ctc_max_lpa") @db.Decimal(6, 2)
+  eligibility         String?
+  graduationYears     Int[]          @default([]) @map("graduation_years")
+  applicationDeadline DateTime?      @map("application_deadline") @db.Timestamptz(3)
+  jobUrl              String?        @map("job_url")
+  description         String?
+  isActive            Boolean        @default(true) @map("is_active")
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  company      Company       @relation(fields: [companyId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  createdBy    User?         @relation("JobCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  applications Application[]
+
+  @@index([visibility, isActive, applicationDeadline])
+  @@index([companyId])
+  @@index([createdById])
+  @@map("jobs")
+}
+
+// ───────────────────────────── Applications ─────────────────────────────
+
+model Application {
+  id              String            @id @default(uuid()) @db.Uuid
+  userId          String            @map("user_id") @db.Uuid
+  jobId           String            @map("job_id") @db.Uuid
+  status          ApplicationStatus @default(SAVED)
+  appliedAt       DateTime?         @map("applied_at") @db.Timestamptz(3)
+  notes           String?
+  resumeId        String?           @map("resume_id") @db.Uuid
+  version         Int               @default(0)
+  statusChangedAt DateTime          @default(now()) @map("status_changed_at") @db.Timestamptz(3)
+  deletedAt       DateTime?         @map("deleted_at") @db.Timestamptz(3)
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job        Job                @relation(fields: [jobId], references: [id])
+  resume     Document?          @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+  events     ApplicationEvent[]
+  interviews Interview[]
+  prepItems  PrepItem[]
+
+  @@unique([userId, jobId])
+  @@index([userId, status])
+  @@map("applications")
+}
+
+model ApplicationEvent {
+  id            String             @id @default(uuid()) @db.Uuid
+  applicationId String             @map("application_id") @db.Uuid
+  actorId       String?            @map("actor_id") @db.Uuid
+  fromStatus    ApplicationStatus? @map("from_status")
+  toStatus      ApplicationStatus  @map("to_status")
+  note          String?
+  occurredAt    DateTime           @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  actor       User?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([applicationId, occurredAt])
+  @@map("application_events")
+}
+
+model PrepItem {
+  id            String   @id @default(uuid()) @db.Uuid
+  applicationId String   @map("application_id") @db.Uuid
+  topic         String
+  isDone        Boolean  @default(false) @map("is_done")
+  position      Int      @default(0)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, topic])
+  @@map("prep_items")
+}
+
+// ───────────────────────────── Interviews & reminders ─────────────────────────────
+
+model Interview {
+  id                     String          @id @default(uuid()) @db.Uuid
+  applicationId          String          @map("application_id") @db.Uuid
+  userId                 String          @map("user_id") @db.Uuid
+  type                   InterviewType
+  title                  String?
+  scheduledAt            DateTime        @map("scheduled_at") @db.Timestamptz(3)
+  endsAt                 DateTime?       @map("ends_at") @db.Timestamptz(3)
+  meetingUrl             String?         @map("meeting_url")
+  notes                  String?
+  status                 InterviewStatus @default(SCHEDULED)
+  reminderOffsetsMinutes Int[]           @default([1440, 60]) @map("reminder_offsets_minutes")
+  createdAt              DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, scheduledAt])
+  @@index([applicationId])
+  @@map("interviews")
+}
+
+model Reminder {
+  id         String         @id @default(uuid()) @db.Uuid
+  userId     String         @map("user_id") @db.Uuid
+  entityType String         @map("entity_type")
+  entityId   String         @map("entity_id") @db.Uuid
+  targetAt   DateTime       @map("target_at") @db.Timestamptz(3)
+  remindAt   DateTime       @map("remind_at") @db.Timestamptz(3)
+  status     ReminderStatus @default(PENDING)
+  jobKey     String         @unique @map("job_key")
+  attempts   Int            @default(0)
+  lastError  String?        @map("last_error")
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, remindAt])
+  @@index([entityType, entityId])
+  @@map("reminders")
+}
+
+// ───────────────────────────── Documents ─────────────────────────────
+
+model Document {
+  id         String         @id @default(uuid()) @db.Uuid
+  userId     String         @map("user_id") @db.Uuid
+  label      String
+  type       DocumentType   @default(RESUME)
+  filename   String
+  mimeType   String         @map("mime_type")
+  sizeBytes  Int            @map("size_bytes")
+  storageKey String         @unique @map("storage_key")
+  status     DocumentStatus @default(PENDING)
+  deletedAt  DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications Application[]
+
+  @@index([userId])
+  @@map("documents")
+}
+
+// ───────────────────────────── Notifications ─────────────────────────────
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  title     String
+  body      String?
+  link      String?
+  dedupeKey String?          @map("dedupe_key")
+  readAt    DateTime?        @map("read_at") @db.Timestamptz(3)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, readAt, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+// ───────────────────────────── Reliability ─────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id") @db.Uuid
+  metadata   Json     @default("{}")
+  ip         String?
+  requestId  String?  @map("request_id")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@map("audit_logs")
+}
+
+model OutboxEvent {
+  id            String    @id @default(uuid()) @db.Uuid
+  type          String
+  aggregateType String    @map("aggregate_type")
+  aggregateId   String    @map("aggregate_id") @db.Uuid
+  payload       Json
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts      Int       @default(0)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox_events")
+}
+
+model IdempotencyKey {
+  id           String            @id @default(uuid()) @db.Uuid
+  userId       String            @map("user_id") @db.Uuid
+  key          String
+  method       String
+  path         String
+  requestHash  String            @map("request_hash")
+  status       IdempotencyStatus @default(IN_PROGRESS)
+  responseCode Int?              @map("response_code")
+  responseBody Json?             @map("response_body")
+  lockedAt     DateTime          @default(now()) @map("locked_at") @db.Timestamptz(3)
+  expiresAt    DateTime          @map("expires_at") @db.Timestamptz(3)
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}

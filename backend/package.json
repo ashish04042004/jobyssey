@@ -1,0 +1,57 @@
+{
+  "name": "jobyssey-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Jobyssey API and background worker",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "dev:worker": "node --watch src/worker.js",
+    "start": "node src/server.js",
+    "start:worker": "node src/worker.js",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "user:set-role": "node scripts/set-role.js",
+    "postinstall": "prisma generate"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {},
+    "globalSetup": "<rootDir>/tests/setup/globalSetup.js",
+    "setupFiles": [
+      "<rootDir>/tests/setup/env.js"
+    ],
+    "testMatch": [
+      "<rootDir>/tests/**/*.test.js"
+    ]
+  },
+  "dependencies": {
+    "@node-rs/argon2": "^2.2.2",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.6",
+    "express": "^5.2.1",
+    "helmet": "^8.3.0",
+    "ioredis": "^6.0.0",
+    "jose": "^6.2.12",
+    "pg": "^8.23.1",
+    "pino": "^10.4.0",
+    "pino-http": "^11.0.0",
+    "prisma": "^7.10.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "jest": "^30.5.2",
+    "pino-pretty": "^13.2.0",
+    "supertest": "^7.3.1"
+  }
+}
